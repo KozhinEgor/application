@@ -3,12 +3,13 @@ package com.application_tender.tender.subsidiaryModels;
 public class Product {
     private Long id;
     private String vendor_code;
+    private Long vendor_id;
     private Double frequency;
     private Boolean usb;
     private Boolean vxi;
     private Boolean portable;
     private String vendor;
-
+    private Integer channel;
     public Product() {
     }
 
@@ -18,6 +19,22 @@ public class Product {
 
     public void setId(Long id) {
         this.id = id;
+    }
+
+    public Long getVendor_id() {
+        return vendor_id;
+    }
+
+    public void setVendor_id(Long vendor_id) {
+        this.vendor_id = vendor_id;
+    }
+
+    public Integer getChannel() {
+        return channel;
+    }
+
+    public void setChannel(Integer channel) {
+        this.channel = channel;
     }
 
     public String getVendor_code() {
@@ -36,7 +53,7 @@ public class Product {
         this.frequency = frequency;
     }
 
-    public Boolean isUsb() {
+    public Boolean getUsb() {
         return usb;
     }
 
@@ -44,7 +61,7 @@ public class Product {
         this.usb = usb;
     }
 
-    public Boolean isVxi() {
+    public Boolean getVxi() {
         return vxi;
     }
 
@@ -52,7 +69,7 @@ public class Product {
         this.vxi = vxi;
     }
 
-    public Boolean isPortable() {
+    public Boolean getPortable() {
         return portable;
     }
 
@@ -60,11 +77,34 @@ public class Product {
         this.portable = portable;
     }
 
-    public String getvendor() {
+    public String getVendor() {
         return vendor;
     }
 
-    public void setvendor(String vendor) {
+    public void setVendor(String vendor) {
         this.vendor = vendor;
+    }
+
+    public Integer getChanel() {
+        return channel;
+    }
+
+    public void setChanel(Integer channel) {
+        this.channel = channel;
+    }
+
+    @Override
+    public String toString() {
+        return "Product{" +
+                "id=" + id +
+                ", vendor_code='" + vendor_code + '\'' +
+                ", vendor_id=" + vendor_id +
+                ", frequency=" + frequency +
+                ", usb=" + usb +
+                ", vxi=" + vxi +
+                ", portable=" + portable +
+                ", vendor='" + vendor + '\'' +
+                ", channel=" + channel +
+                '}';
     }
 }

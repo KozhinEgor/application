@@ -14,6 +14,8 @@ public class Oscilloscope {
     
     private boolean vxi;
 
+    private int channel;
+
     public Oscilloscope() {
     }
 
@@ -63,5 +65,13 @@ public class Oscilloscope {
 
     public void setVxi(boolean vxi) {
         this.vxi = vxi;
+    }
+
+    public int getChannel() {
+        return channel;
+    }
+
+    public void setChannel(int channel) {
+        this.channel = channel;
     }
 }

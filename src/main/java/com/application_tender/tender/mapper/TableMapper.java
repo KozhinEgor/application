@@ -2,25 +2,13 @@ package com.application_tender.tender.mapper;
 
 import com.application_tender.tender.models.*;
 import com.application_tender.tender.subsidiaryModels.Product;
-import org.apache.ibatis.annotations.Insert;
-import org.apache.ibatis.annotations.Mapper;
-import org.apache.ibatis.annotations.Select;
-import org.apache.ibatis.annotations.Update;
-import org.springframework.context.annotation.Bean;
+import org.apache.ibatis.annotations.*;
 
 import java.math.BigDecimal;
 import java.time.ZonedDateTime;
 import java.util.List;
 @Mapper
 public interface TableMapper {
-
-    @Select("Select * from orders")
-        List<Orders> findAllOrders();
-
-
-
-    @Select("Select * from pulse_generator")
-        List<PulseGenerator> findAllPulseGenerator();
 ///////////////////////////////////////////////////////////
 //              Tender SQL
 ///////////////////////////////////////////////////////////
@@ -46,20 +34,74 @@ public interface TableMapper {
 ///////////////////////////////////////////////////////////
     @Select("Select id,category from product_category")
         List<ProductCategory> findAllProductCategory();
+    @Select("Select category from product_category where id = #{id} limit 1")
+        String findOneCategoryById(Long id);
 ///////////////////////////////////////////////////////////
-//              Oscilloscope SQL
+//              Spectrum_analyser SQL   spectrum_analyser
+///////////////////////////////////////////////////////////
+    @Select("Select * from spectrum_analyser")
+        List<Spectrum_analyzers> findAllSpectrum_analysers();
+    @Select("Select pr.id, vendor_code, frequency,vendor as vendor_id, usb, portable,  name as vendor from spectrum_analyser as pr left join vendor v on pr.vendor = v.id")
+        List<Product> findAllSpectrum_analyserToProduct();
+    @Select("Select pr.id, vendor_code, frequency,vendor as vendor_id, usb, portable,  name as vendor from spectrum_analyser as pr left join vendor v on pr.vendor = v.id where pr.id = #{id_product} limit  1")
+        Product findAllSpectrum_analyserToProductById(Long id_product);
+    @Select("Select vendor_code, vendor as vendor_id from spectrum_analyser where id = #{id} limit 1")
+        Product findOneSpectrum_analyserById(Long id);
+///////////////////////////////////////////////////////////
+//              SignalGenerator SQL     signal_generator
+///////////////////////////////////////////////////////////
+    @Select("Select * from signal_generator")
+        List<SignalGenerator> findAllSignalGenerator();
+    @Select("Select pr.id, vendor_code, frequency,vendor as vendor_id, name as vendor from signal_generator as pr left join vendor v on pr.vendor = v.id")
+        List<Product> findAllSignalGeneratorToProduct();
+    @Select("Select pr.id, vendor_code, frequency,vendor as vendor_id, name as vendor from signal_generator as pr left join vendor v on pr.vendor = v.id where pr.id = #{id_product} limit  1")
+        Product findAllSignalGeneratorToProductById(Long id_product);
+    @Select("Select vendor_code, vendor as vendor_id from signal_generator where id = #{id} limit 1")
+        Product findOneSignalGeneratorById(Long id);
+///////////////////////////////////////////////////////////
+//              PulseGenerator SQL      pulse_generator
+///////////////////////////////////////////////////////////
+    @Select("Select * from pulse_generator")
+        List<PulseGenerator> findAllPulseGenerator();
+    @Select("Select pr.id, vendor_code, frequency,vendor as vendor_id, name as vendor from pulse_generator as pr left join vendor v on pr.vendor = v.id")
+        List<Product> findAllPulseGeneratorToProduct();
+    @Select("Select pr.id, vendor_code, frequency,vendor as vendor_id, name as vendor from pulse_generator as pr left join vendor v on pr.vendor = v.id where pr.id = #{id_product} limit  1")
+        Product findAllPulseGeneratorToProductById(Long id_product);
+    @Select("Select vendor_code, vendor as vendor_id from pulse_generator where id = #{id} limit 1")
+        Product findOnePulseGeneratorById(Long id);
+///////////////////////////////////////////////////////////
+//              SignalAnalyzer SQL      signal_analyzer
+///////////////////////////////////////////////////////////
+    @Select("Select * from signal_analyzer")
+        List<SignalAnalyzer> findAllSignalAnalyzer();
+    @Select("Select pr.id, vendor_code, frequency, vendor as vendor_id, name as vendor from signal_analyzer as pr left join vendor v on pr.vendor = v.id")
+        List<Product> findAllSignalAnalyzerToProduct();
+    @Select("Select pr.id, vendor_code, frequency, vendor as vendor_id, name as vendor from signal_analyzer as pr left join vendor v on pr.vendor = v.id where pr.id = #{id_product} limit  1")
+        Product findAllSignalAnalyzerToProductById(Long id_product);
+    @Select("Select vendor_code, vendor as vendor_id from signal_analyzer where id = #{id} limit 1")
+        Product findOneSignalAnalyzerById(Long id);
+///////////////////////////////////////////////////////////
+//              Oscilloscope SQL        oscilloscope
 ///////////////////////////////////////////////////////////
     @Select("Select * from oscilloscope")
         List<Oscilloscope> findAllOscilloscope();
-    @Select("Select oscilloscope.id, vendor_code, frequency, usb, vxi, name as vendor from oscilloscope left join vendor v on oscilloscope.vendor = v.id")
+    @Select("Select pr.id, vendor_code, frequency,vendor as vendor_id, usb, vxi, channel, name as vendor from oscilloscope as pr left join vendor v on pr.vendor = v.id")
         List<Product> findAllOscilloscopeToProduct();
+    @Select("Select pr.id, vendor_code, frequency,vendor as vendor_id, usb, vxi, channel, name as vendor from oscilloscope as pr left join vendor v on pr.vendor = v.id where pr.id = #{id_product} limit  1")
+        Product findAllOscilloscopeToProductById(Long id_product);
+    @Select("Select vendor_code, vendor as vendor_id from oscilloscope where id = #{id} limit 1")
+        Product findOneOscilloscopeById(Long id);
 ///////////////////////////////////////////////////////////
-//              AnotherProduct SQL
+//              AnotherProduct SQL      another_product
 ///////////////////////////////////////////////////////////
     @Select("Select * from another_product")
         List<AnotherProduct> findAllAnotherProduct();
     @Select("Select id,name as vendor_code from another_product")
         List<Product> findAllAnotherProductToProduct();
+    @Select("Select id,name as vendor_code from another_product as pr where pr.id = #{id_product} limit 1")
+        Product findAllAnotherProductToProductById(Long id_product);
+    @Select("Select name as vendor_code from another_product where id = #{id} limit 1")
+        Product findOneAnotherProductById(Long id);
 ///////////////////////////////////////////////////////////
 //              Customer SQL
 ///////////////////////////////////////////////////////////
@@ -90,4 +132,26 @@ public interface TableMapper {
     @Select("Select * from winner")
         List<Winner> findAllWinner();
 
+///////////////////////////////////////////////////////////
+//              Vendor SQL
+///////////////////////////////////////////////////////////
+    @Select("Select * from vendor")
+        List<Vendor> findAllVendor();
+    @Select("Select name from vendor where id = #{id}")
+        String findOneVendorById(Long id);
+///////////////////////////////////////////////////////////
+//              Order SQL
+///////////////////////////////////////////////////////////
+    @Select("Select * from orders")
+        List<OrdersDB> findAllOrders();
+    @Select("Select id,comment,id_product,product_category,tender,number,price,win_price as winprice from orders where tender = #{tender}")
+        List<OrdersDB> findAllOrdersBDbyTender(Long tender);
+    @Select("Select id from orders where tender = #{tender}")
+        List<Long> findAllOrdersIdbyTender(Long tender);
+    @Insert("insert into orders (comment, id_product,product_category,tender,number,price,win_price) values (#{comment}, #{id_product},#{product_category},#{tender},#{number},#{price},#{win_price})")
+        Long insertOrder(String comment,Long id_product, Long product_category,Long tender,int number,BigDecimal price,BigDecimal win_price);
+    @Update("update orders set comment = #{comment}, id_product = #{id_product},product_category = #{product_category},tender = #{tender},number = #{number},price = #{price},win_price = #{win_price} where id = #{id}")
+        Long updateOrder(Long id,String comment,Long id_product, Long product_category,Long tender,int number,BigDecimal price,BigDecimal win_price);
+    @Delete("Delete from orders where id = #{id}")
+        Long deleteOrder(Long id);
 }
