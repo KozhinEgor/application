@@ -91,9 +91,23 @@ public class Orders {
         this.winprice = winprice;
     }
 
-
+    public String ToDB(){
+        if(product_category.length() == 0){
+            return   id_product + ' ' +
+                    comment + ' ' +
+                    "- " + number;
+        }
+        else{
+            return product_category + ' ' +
+                    (vendor.length() != 0 ? vendor + " " : "" )+
+                    (id_product.length() != 0? id_product + " " : "" )+
+                    (comment.length() != 0 ?"(" + comment + ") ": "") +
+                    "- " + number;
+        }
+    }
     @Override
     public String toString() {
+
         return "Orders{" +
                 "tender=" + tender +
                 ", product_category='" + product_category + '\'' +

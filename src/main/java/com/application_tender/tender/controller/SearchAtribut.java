@@ -20,12 +20,12 @@ public class SearchAtribut {
             idCustomer = tableMapper.findCustomerByName(name);
         }
         else {
-
-            idCustomer = tableMapper.findCustomerByInn("23");
+            idCustomer = tableMapper.findCustomerByInn(inn);
         }
         if(idCustomer == null){
             //добавление новой записи
-            idCustomer = tableMapper.insertCustomer(name,inn);
+            tableMapper.insertCustomer(name,inn);
+            idCustomer = tableMapper.findCustomerByNameandINN(name,inn);
         }
         else {
             if(inn.length() != 0 && tableMapper.findCustomerInnById(idCustomer) == "0"){

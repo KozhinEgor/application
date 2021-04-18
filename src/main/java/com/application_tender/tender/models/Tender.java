@@ -40,6 +40,8 @@ public class Tender {
 
     private String winner;
 
+    private String product;
+
     public Tender() {
     }
 
@@ -177,5 +179,13 @@ public class Tender {
 
     public void setWinner(String winner) {
         this.winner = winner;
+    }
+
+    public String getProduct() {
+        return product;
+    }
+
+    public void setProduct(String product) {
+        this.product = product;
     }
 }

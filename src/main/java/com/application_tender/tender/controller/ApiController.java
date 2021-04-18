@@ -140,33 +140,54 @@ public class ApiController {
         List<Orders> orders = new LinkedList<Orders>();
         for (OrdersDB orderDB : ordersDB ){
             Long id = orderDB.getProduct_category();
-            Product product_id;
+            Product product_id = null;
             if(id == 1){
                 //анализатор спектра
                 product_id = tableMapper.findOneSpectrum_analyserById(orderDB.getId_product());
+                if (product_id.getId() == Long.valueOf(122)){
+                    product_id = null;
+                }
             }
             else if (id == 2){
                 //генератор сигналов
                 product_id = tableMapper.findOneSignalGeneratorById(orderDB.getId_product());
+                if (product_id.getId() == Long.valueOf(269)){
+                    product_id = null;
+                }
             }
             else if (id == 3){
                 //генератор импульсов
                 product_id = tableMapper.findOnePulseGeneratorById(orderDB.getId_product());
+                if (product_id.getId() == Long.valueOf(30)){
+                    product_id = null;
+                }
             }
             else if (id == 4){
                 //анализатор сигналов
                 product_id = tableMapper.findOneSignalAnalyzerById(orderDB.getId_product());
+                if (product_id.getId() == Long.valueOf(122)){
+                    product_id = null;
+                }
             }
             else if (id == 6){
                 //осциллограф
                 product_id = tableMapper.findOneOscilloscopeById(orderDB.getId_product());
+                if (product_id.getId() == Long.valueOf(506)){
+                    product_id = null;
+                }
             }
             else{
                 //Продукты
                 product_id = tableMapper.findOneAnotherProductById(orderDB.getId_product());
             }
-            orderDB.setVendor(product_id.getVendor_id());
-            orders.add(new Orders(orderDB.getTender(), tableMapper.findOneCategoryById(orderDB.getProduct_category()),(tableMapper.findOneVendorById(product_id.getVendor_id()) == null? "" : tableMapper.findOneVendorById(product_id.getVendor_id())  + ' ') + product_id.getVendor_code() , tableMapper.findOneVendorById(product_id.getVendor_id()),orderDB.getComment(),orderDB.getNumber(),orderDB.getPrice(), orderDB.getWinprice()));
+            orders.add(new Orders(orderDB.getTender(),
+                    tableMapper.findOneCategoryById(orderDB.getProduct_category()),
+                    ((product_id == null || product_id.getVendor_id() == null || product_id.getVendor_id() == Long.valueOf(1)) ? "" : tableMapper.findOneVendorById(product_id.getVendor_id())  + ' ') + (product_id == null ? "": product_id.getVendor_code() + " "),
+                    product_id == null ?  tableMapper.findOneVendorById(Long.valueOf(1)) : tableMapper.findOneVendorById(product_id.getVendor_id()),
+                    orderDB.getComment(),
+                    orderDB.getNumber(),
+                    orderDB.getPrice(),
+                    orderDB.getWinprice()));
         }
         return new OrdersReceived(orders,ordersDB);
     }
@@ -190,6 +211,9 @@ public class ApiController {
         while (sheet.getRow(count).getCell(0) != null) {
             XSSFRow row = sheet.getRow(count);
             String numberTender = new DataFormatter().formatCellValue(row.getCell(7));
+            if(numberTender == ""){
+                break;
+            }
             Long id;
             if (tableMapper.findTenderByNumber_tender(numberTender) != null){
 
@@ -201,8 +225,8 @@ public class ApiController {
                 String INNCustomer = new DataFormatter().formatCellValue(row.getCell(3));
 
                         id = tableMapper.insertTender(row.getCell(0).getStringCellValue(),
-                            row.getCell(0).getHyperlink().getAddress(),
-                            row.getCell(1).getHyperlink().getAddress(),
+                            "https://www.bicotender.ru/tc/tender/show/tender_id/" + numberTender,
+                            row.getCell(1).getStringCellValue(),
                             ZonedDateTime.parse(row.getCell(8).getStringCellValue() + " 00:00:00 Z", format_date),
                             ZonedDateTime.parse(row.getCell(9).getStringCellValue() + " Z", format_date),
                             numberTender,
@@ -285,6 +309,84 @@ public class ApiController {
             tableMapper.deleteOrder(id);
 
         }
+        List<OrdersDB> ordersDB = tableMapper.findAllOrdersBDbyTender(json.get(0).getTender());
+        if(ordersDB != null) {
+            List<Orders> orders = new LinkedList<Orders>();
+            String product = "";
+            for (OrdersDB orderDB : ordersDB) {
+                Long id = orderDB.getProduct_category();
+                Product product_id;
+                if(id == 1){
+                    //анализатор спектра
+                    product_id = tableMapper.findOneSpectrum_analyserById(orderDB.getId_product());
+
+                    if (product_id.getId().equals(Long.valueOf(122))){
+                        product_id = null;
+                    }
+                }
+                else if (id == 2){
+                    //генератор сигналов
+                    product_id = tableMapper.findOneSignalGeneratorById(orderDB.getId_product());
+
+                    if (product_id.getId().equals(Long.valueOf(269))){
+                        product_id = null;
+                    }
+                }
+                else if (id == 3){
+                    //генератор импульсов
+                    product_id = tableMapper.findOnePulseGeneratorById(orderDB.getId_product());
+
+                    if (product_id.getId().equals(Long.valueOf(30))){
+                        product_id = null;
+                    }
+                }
+                else if (id == 4){
+                    //анализатор сигналов
+                    product_id = tableMapper.findOneSignalAnalyzerById(orderDB.getId_product());
+
+                    if (product_id.getId().equals( Long.valueOf(122))){
+                        product_id = null;
+                    }
+                }
+                else if (id == 6){
+                    //осциллограф
+                    product_id = tableMapper.findOneOscilloscopeById(orderDB.getId_product());
+
+                    if (product_id.getId().equals(Long.valueOf(506))){
+
+                        product_id = null;
+                    }
+                }
+                else{
+                    //Продукты
+                    product_id = tableMapper.findOneAnotherProductById(orderDB.getId_product());
+                }
+                orderDB.setVendor(product_id == null ? Long.valueOf(1) : product_id.getVendor_id());
+                orders.add(new Orders(orderDB.getTender(),
+                        (orderDB.getProduct_category() != 7 ? tableMapper.findOneCategoryById(orderDB.getProduct_category()) : ""),
+                         product_id == null ? "" : product_id.getVendor_code() ,
+                        product_id == null || product_id.getVendor_id() == null || product_id.getVendor_id() == 1? "" : tableMapper.findOneVendorById(product_id.getVendor_id())  + ' ',
+                        orderDB.getComment(),
+                        orderDB.getNumber(),
+                        orderDB.getPrice(),
+                        orderDB.getWinprice()));
+            }
+            for(Orders order : orders){
+                product =product + order.ToDB() + "; ";
+            }
+            tableMapper.UpdateProduct(product, json.get(0).getTender());
+        }
         return "good";
+    }
+    @GetMapping("/CountTenderWithoutOrders")
+    @ResponseBody
+    Long findCountTenderWithoutOrders(){
+        return tableMapper.findCountTenderWithoutOrders();
+    }
+
+    @GetMapping("/TenderWithoutOrders")
+    @ResponseBody
+    List<Tender> findTenderWithoutOrders(){
+        return tableMapper.findTenderWithoutOrders();
     }
 }
