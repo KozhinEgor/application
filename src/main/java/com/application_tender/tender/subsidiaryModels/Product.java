@@ -2,13 +2,14 @@ package com.application_tender.tender.subsidiaryModels;
 
 public class Product {
     private Long id;
+    private String vendor;
     private String vendor_code;
     private Long vendor_id;
     private Double frequency;
     private Boolean usb;
     private Boolean vxi;
     private Boolean portable;
-    private String vendor;
+
     private Integer channel;
     public Product() {
     }
@@ -85,13 +86,6 @@ public class Product {
         this.vendor = vendor;
     }
 
-    public Integer getChanel() {
-        return channel;
-    }
-
-    public void setChanel(Integer channel) {
-        this.channel = channel;
-    }
 
     @Override
     public String toString() {

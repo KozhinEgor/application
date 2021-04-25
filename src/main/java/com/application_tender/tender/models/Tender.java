@@ -188,4 +188,28 @@ public class Tender {
     public void setProduct(String product) {
         this.product = product;
     }
+
+    @Override
+    public String toString() {
+        return "Tender{" +
+                "id=" + id +
+                ", customer='" + customer + '\'' +
+                ", inn='" + inn + '\'' +
+                ", name_tender='" + name_tender + '\'' +
+                ", number_tender='" + number_tender + '\'' +
+                ", bico_tender='" + bico_tender + '\'' +
+                ", gos_zakupki='" + gos_zakupki + '\'' +
+                ", typetender='" + typetender + '\'' +
+                ", price=" + price +
+                ", currency='" + currency + '\'' +
+                ", rate=" + rate +
+                ", sum=" + sum +
+                ", date_start=" + date_start +
+                ", date_finish=" + date_finish +
+                ", full_sum=" + full_sum +
+                ", win_sum=" + win_sum +
+                ", winner='" + winner + '\'' +
+                ", product='" + product + '\'' +
+                '}';
+    }
 }

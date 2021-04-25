@@ -3,9 +3,7 @@ package com.application_tender.tender.controller;
 
 import com.application_tender.tender.mapper.TableMapper;
 import com.application_tender.tender.models.*;
-import com.application_tender.tender.subsidiaryModels.OrdersReceived;
-import com.application_tender.tender.subsidiaryModels.Product;
-import com.application_tender.tender.subsidiaryModels.ReceivedJSON;
+import com.application_tender.tender.subsidiaryModels.*;
 import org.apache.poi.ss.usermodel.DataFormatter;
 import org.apache.poi.xssf.usermodel.XSSFRow;
 import org.apache.poi.xssf.usermodel.XSSFSheet;
@@ -22,13 +20,13 @@ import java.io.InputStream;
 import java.math.BigDecimal;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.LinkedList;
-import java.util.List;
+import java.time.temporal.IsoFields;
+import java.util.*;
 
 @Controller
 @RequestMapping(path = "/demo")
 public class ApiController {
-    private DateTimeFormatter format_date= DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm:ss z");
+    private final DateTimeFormatter format_date= DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm:ss z");
     private  final TableMapper tableMapper;
     @Autowired
     private SearchAtribut searchAtribut;
@@ -94,6 +92,10 @@ public class ApiController {
             //анализатор сигналов
             return tableMapper.findAllSignalAnalyzerToProduct();
         }
+        else if (id == 5){
+            //анализатор сигналов
+            return tableMapper.findAllNetworkAnalyzersToProduct();
+        }
         else if (id == 6){
             //осциллограф
             return tableMapper.findAllOscilloscopeToProduct();
@@ -123,6 +125,10 @@ public class ApiController {
             //анализатор сигналов
             return tableMapper.findAllSignalAnalyzerToProductById(id_product);
         }
+        else if (id == 5){
+            //анализатор сигналов
+            return tableMapper.findAllNetworkAnalyzersToProductById(id_product);
+        }
         else if (id == 6){
             //осциллограф
             return tableMapper.findAllOscilloscopeToProductById(id_product);
@@ -137,42 +143,50 @@ public class ApiController {
     @ResponseBody
     OrdersReceived OrdersByTender(@PathVariable Long tender){
         List<OrdersDB> ordersDB = tableMapper.findAllOrdersBDbyTender(tender);
-        List<Orders> orders = new LinkedList<Orders>();
+        List<Orders> orders = new LinkedList<>();
         for (OrdersDB orderDB : ordersDB ){
             Long id = orderDB.getProduct_category();
             Product product_id = null;
             if(id == 1){
                 //анализатор спектра
                 product_id = tableMapper.findOneSpectrum_analyserById(orderDB.getId_product());
-                if (product_id.getId() == Long.valueOf(122)){
+                if (product_id.getId().equals(122L)){
                     product_id = null;
                 }
             }
             else if (id == 2){
                 //генератор сигналов
                 product_id = tableMapper.findOneSignalGeneratorById(orderDB.getId_product());
-                if (product_id.getId() == Long.valueOf(269)){
+                if (product_id.getId().equals(269L)){
                     product_id = null;
                 }
             }
             else if (id == 3){
                 //генератор импульсов
                 product_id = tableMapper.findOnePulseGeneratorById(orderDB.getId_product());
-                if (product_id.getId() == Long.valueOf(30)){
+                if (product_id.getId().equals(30L)){
                     product_id = null;
                 }
             }
             else if (id == 4){
                 //анализатор сигналов
                 product_id = tableMapper.findOneSignalAnalyzerById(orderDB.getId_product());
-                if (product_id.getId() == Long.valueOf(122)){
+                if (product_id.getId().equals(122L)){
+                    product_id = null;
+                }
+            }
+            else if (id == 5){
+                //анализатор цепей
+                product_id = tableMapper.findOneNetworkAnalyzersById(orderDB.getId_product());
+
+                if (product_id.getId().equals( 56L)){
                     product_id = null;
                 }
             }
             else if (id == 6){
                 //осциллограф
                 product_id = tableMapper.findOneOscilloscopeById(orderDB.getId_product());
-                if (product_id.getId() == Long.valueOf(506)){
+                if (product_id.getId().equals(506L)){
                     product_id = null;
                 }
             }
@@ -182,8 +196,8 @@ public class ApiController {
             }
             orders.add(new Orders(orderDB.getTender(),
                     tableMapper.findOneCategoryById(orderDB.getProduct_category()),
-                    ((product_id == null || product_id.getVendor_id() == null || product_id.getVendor_id() == Long.valueOf(1)) ? "" : tableMapper.findOneVendorById(product_id.getVendor_id())  + ' ') + (product_id == null ? "": product_id.getVendor_code() + " "),
-                    product_id == null ?  tableMapper.findOneVendorById(Long.valueOf(1)) : tableMapper.findOneVendorById(product_id.getVendor_id()),
+                    ((product_id == null || product_id.getVendor_id() == null || product_id.getVendor_id().equals(1L)) ? "" : tableMapper.findOneVendorById(product_id.getVendor_id())  + ' ') + (product_id == null ? "": product_id.getVendor_code() + " "),
+                    product_id == null ?  tableMapper.findOneVendorById(1L) : tableMapper.findOneVendorById(product_id.getVendor_id()),
                     orderDB.getComment(),
                     orderDB.getNumber(),
                     orderDB.getPrice(),
@@ -200,7 +214,7 @@ public class ApiController {
     @ResponseBody
     List<Tender> addTender(MultipartFile excel) throws IOException {
 
-        LinkedList<Tender> tenders = new LinkedList<Tender>();
+        LinkedList<Tender> tenders = new LinkedList<>();
         File temp = new File("C:\\Users\\egkozhin\\IdeaProjects\\application\\temp.xlsx");
 
         excel.transferTo(temp);
@@ -211,7 +225,7 @@ public class ApiController {
         while (sheet.getRow(count).getCell(0) != null) {
             XSSFRow row = sheet.getRow(count);
             String numberTender = new DataFormatter().formatCellValue(row.getCell(7));
-            if(numberTender == ""){
+            if(numberTender.equals("")){
                 break;
             }
             Long id;
@@ -238,7 +252,7 @@ public class ApiController {
                             new BigDecimal(0),
                             searchAtribut.findCustomer(INNCustomer, sheet.getRow(count).getCell(2).getStringCellValue()),
                             searchAtribut.findTypetender(row.getCell(6).getStringCellValue()),
-                            Long.valueOf(1)
+                                1L
                         );
                 id = tableMapper.findTenderByNumber_tender(numberTender);
                 System.out.println(id);
@@ -251,19 +265,7 @@ public class ApiController {
 
         return tenders;
     }
-    @RequestMapping(value = "/Test", method = RequestMethod.POST, consumes = { "multipart/form-data" })
-    @ResponseBody
-    String Test(MultipartFile excel) throws IOException {
 
-        File temp = new File("C:\\Users\\egkozhin\\IdeaProjects\\application\\temp.xlsx");
-        excel.transferTo(temp);
-        InputStream ExcelFileToRead = new FileInputStream(temp);
-        XSSFWorkbook workbook = new XSSFWorkbook(ExcelFileToRead );
-        System.out.println(workbook.getNumberOfSheets());
-        XSSFSheet sheet = workbook.getSheetAt(0);
-        ExcelFileToRead.close();
-        return "goodConnect";
-    }
     @GetMapping("/Vendor")
     @ResponseBody
     List<Vendor> Vendor(){
@@ -312,7 +314,7 @@ public class ApiController {
         List<OrdersDB> ordersDB = tableMapper.findAllOrdersBDbyTender(json.get(0).getTender());
         if(ordersDB != null) {
             List<Orders> orders = new LinkedList<Orders>();
-            String product = "";
+            StringBuilder product = new StringBuilder();
             for (OrdersDB orderDB : ordersDB) {
                 Long id = orderDB.getProduct_category();
                 Product product_id;
@@ -320,7 +322,7 @@ public class ApiController {
                     //анализатор спектра
                     product_id = tableMapper.findOneSpectrum_analyserById(orderDB.getId_product());
 
-                    if (product_id.getId().equals(Long.valueOf(122))){
+                    if (product_id.getId().equals(122L)){
                         product_id = null;
                     }
                 }
@@ -328,7 +330,7 @@ public class ApiController {
                     //генератор сигналов
                     product_id = tableMapper.findOneSignalGeneratorById(orderDB.getId_product());
 
-                    if (product_id.getId().equals(Long.valueOf(269))){
+                    if (product_id.getId().equals(269L)){
                         product_id = null;
                     }
                 }
@@ -336,7 +338,7 @@ public class ApiController {
                     //генератор импульсов
                     product_id = tableMapper.findOnePulseGeneratorById(orderDB.getId_product());
 
-                    if (product_id.getId().equals(Long.valueOf(30))){
+                    if (product_id.getId().equals(30L)){
                         product_id = null;
                     }
                 }
@@ -344,7 +346,15 @@ public class ApiController {
                     //анализатор сигналов
                     product_id = tableMapper.findOneSignalAnalyzerById(orderDB.getId_product());
 
-                    if (product_id.getId().equals( Long.valueOf(122))){
+                    if (product_id.getId().equals( 122L)){
+                        product_id = null;
+                    }
+                }
+                else if (id == 5){
+                    //анализатор цепей
+                    product_id = tableMapper.findOneNetworkAnalyzersById(orderDB.getId_product());
+
+                    if (product_id.getId().equals( 56L)){
                         product_id = null;
                     }
                 }
@@ -352,7 +362,7 @@ public class ApiController {
                     //осциллограф
                     product_id = tableMapper.findOneOscilloscopeById(orderDB.getId_product());
 
-                    if (product_id.getId().equals(Long.valueOf(506))){
+                    if (product_id.getId().equals(506L)){
 
                         product_id = null;
                     }
@@ -372,9 +382,9 @@ public class ApiController {
                         orderDB.getWinprice()));
             }
             for(Orders order : orders){
-                product =product + order.ToDB() + "; ";
+                product.append(order.ToDB()).append("; ");
             }
-            tableMapper.UpdateProduct(product, json.get(0).getTender());
+            tableMapper.UpdateProduct(product.toString(), json.get(0).getTender());
         }
         return "good";
     }
@@ -388,5 +398,168 @@ public class ApiController {
     @ResponseBody
     List<Tender> findTenderWithoutOrders(){
         return tableMapper.findTenderWithoutOrders();
+    }
+
+    @GetMapping("/TendernoDocumentation")
+    @ResponseBody
+    List<Tender> findTendernoDocumentation(){
+        return tableMapper.findTendernoDocumentation();
+    }
+
+    @RequestMapping( path = "/quarterTender/{category}")
+    @ResponseBody public ArrayList<ReportQuarter> getQuartalTenderReport (@PathVariable Long category){
+        int year = ZonedDateTime.now().getYear();
+        int quartal = ZonedDateTime.now().get(IsoFields.QUARTER_OF_YEAR);
+        int y = year - 2;
+        int q = quartal;
+        ArrayList<ReportQuarter> reportQuarters = new ArrayList<>();
+        String category_en = tableMapper.findOneCategoryENById(category);
+
+        while (y != year || q != quartal+1) {
+                        System.out.println(y);
+            System.out.println(q);
+            reportQuarters.add(0,tableMapper.findForOrders(y, q, category));
+
+            if (q == 4) {
+                q = 1;
+                y = y + 1;
+            } else {
+                q = q + 1;
+            }
+        }
+
+        return reportQuarters;
+    }
+    @RequestMapping( path = "/quarterVendor/{category}")
+    @ResponseBody public ArrayList<ReportVendorQuarter>getQuartalVendorReport (@PathVariable Long category){
+        int year = ZonedDateTime.now().getYear();
+        int quartal = ZonedDateTime.now().get(IsoFields.QUARTER_OF_YEAR);
+        int y = year - 2;
+        int q = quartal;
+
+        ArrayList<ReportVendorQuarter> reportVendorQuarters = new ArrayList<>();
+        String category_en = tableMapper.findOneCategoryENById(category);
+
+        while (y != year || q != quartal+1) {
+            Map<String,Integer> vendorCount = new HashMap<String,Integer>();
+            System.out.println(y);
+            System.out.println(q);
+            List<String> vendors = tableMapper.findVendorForOrders(y,q,category,category_en);
+            for (String vendor : vendors) {
+                if(vendor.equals("No vendor")){}
+                else if (!vendorCount.containsKey(vendor)) {
+                    vendorCount.put(vendor, 1);
+                } else {
+                    vendorCount.put(vendor, vendorCount.get(vendor) + 1);
+                }
+            }
+            if(reportVendorQuarters.isEmpty()){
+                for(Map.Entry<String,Integer> entry: vendorCount.entrySet()){
+                    ReportVendorQuarter reportVendorQuarter = new ReportVendorQuarter(entry.getKey());
+                    reportVendorQuarter.getQuarter().put(String.valueOf(y) + ' '+ String.valueOf(q),entry.getValue());
+                    reportVendorQuarters.add(reportVendorQuarter);
+
+                }
+            }
+            else{
+
+                for(Map.Entry<String,Integer> entry: vendorCount.entrySet()){
+                    boolean flag = false;
+                    for(ReportVendorQuarter reportVendorQuarter : reportVendorQuarters){
+                        if(reportVendorQuarter.getVendor().equals(entry.getKey())){
+                            reportVendorQuarter.getQuarter().put(String.valueOf(y) + ' '+ String.valueOf(q),entry.getValue());
+                            flag = true;
+                        }
+
+                    }
+                    if(!flag){
+                        ReportVendorQuarter reportVendorQuarter = new ReportVendorQuarter(entry.getKey());
+                        reportVendorQuarter.getQuarter().put(String.valueOf(y) + ' '+ String.valueOf(q),entry.getValue());
+                        reportVendorQuarters.add(reportVendorQuarter);
+                    }
+                }
+            }
+            if (q == 4) {
+                q = 1;
+                y = y + 1;
+            } else {
+                q = q + 1;
+            }
+        }
+
+        return reportVendorQuarters;
+    }
+    @RequestMapping( path = "/quarterNoVendor/{category}")
+    @ResponseBody public ArrayList<ReportVendorQuarter>getQuartalNoVendorReport (@PathVariable Long category){
+        int year = ZonedDateTime.now().getYear();
+        int quartal = ZonedDateTime.now().get(IsoFields.QUARTER_OF_YEAR);
+        int y = year - 2;
+        int q = quartal;
+
+        ArrayList<ReportVendorQuarter> reportVendorQuarters = new ArrayList<>();
+        String category_en = tableMapper.findOneCategoryENById(category);
+
+        while (y != year || q != quartal+1) {
+            Map<String,Integer> vendorCount = new HashMap<String,Integer>();
+            System.out.println(y);
+            System.out.println(q);
+            List<String> vendors = tableMapper.findNoVendorForOrders(y,q,category,category_en);
+            for (String vendor : vendors) {
+                if (!vendorCount.containsKey(vendor)) {
+                    vendorCount.put(vendor, 1);
+                } else {
+                    vendorCount.put(vendor, vendorCount.get(vendor) + 1);
+                }
+            }
+            if(reportVendorQuarters.isEmpty()){
+                for(Map.Entry<String,Integer> entry: vendorCount.entrySet()){
+                    ReportVendorQuarter reportVendorQuarter = new ReportVendorQuarter(entry.getKey());
+                    reportVendorQuarter.getQuarter().put(String.valueOf(y) + ' '+ String.valueOf(q),entry.getValue());
+                    reportVendorQuarters.add(reportVendorQuarter);
+
+                }
+            }
+            else{
+
+                for(Map.Entry<String,Integer> entry: vendorCount.entrySet()){
+                    boolean flag = false;
+                    for(ReportVendorQuarter reportVendorQuarter : reportVendorQuarters){
+                        if(reportVendorQuarter.getVendor().equals(entry.getKey())){
+                            reportVendorQuarter.getQuarter().put(String.valueOf(y) + ' '+ String.valueOf(q),entry.getValue());
+                            flag = true;
+                        }
+
+                    }
+                    if(!flag){
+                        ReportVendorQuarter reportVendorQuarter = new ReportVendorQuarter(entry.getKey());
+                        reportVendorQuarter.getQuarter().put(String.valueOf(y) + ' '+ String.valueOf(q),entry.getValue());
+                        reportVendorQuarters.add(reportVendorQuarter);
+                    }
+                }
+            }
+            if (q == 4) {
+                q = 1;
+                y = y + 1;
+            } else {
+                q = q + 1;
+            }
+        }
+
+        return reportVendorQuarters;
+    }
+    @PostMapping("/saveProduct/{category}")
+    @ResponseBody
+    String saveProduct(@RequestBody Product product, @PathVariable Long category ){
+        if(product.getId() != null){
+        }
+        System.out.println(product.toString());
+        System.out.println(category);
+        return "good";
+    }
+    @PostMapping("/saveTender")
+    @ResponseBody
+    String saveTender(@RequestBody Tender tender){
+        tableMapper.UpdateSum(tender.getPrice(), tender.getId());
+        return "good";
     }
 }
