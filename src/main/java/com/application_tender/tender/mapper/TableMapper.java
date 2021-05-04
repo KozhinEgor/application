@@ -14,7 +14,7 @@ public interface TableMapper {
 //              Tender SQL
 ///////////////////////////////////////////////////////////
     @Select("Select tender.id,name_tender, bico_tender,gos_zakupki,date_start, date_finish,number_tender,  full_sum, win_sum, currency, price, rate, sum, c.name as customer, c.inn as inn, type as typetender, w.name as winner" +
-        " from tender left join customer c on c.id = tender.customer left join typetender t on t.id = tender.typetender left join winner w on w.id = tender.winner")
+        " from tender left join customer c on c.id = tender.customer left join typetender t on t.id = tender.typetender left join winner w on w.id = tender.winner where tender.id > 4378")
         List<Tender> findAllTender();
 
     @Select("Select id from tender where number_tender = #{number_tender}")
@@ -23,19 +23,26 @@ public interface TableMapper {
     @Select("Select tender.id,name_tender, bico_tender,gos_zakupki,date_start, date_finish,number_tender,  full_sum, win_sum, currency, price, rate, sum, c.name as customer, c.inn as inn, type as typetender, w.name as winner, product" +
             " from tender left join customer c on c.id = tender.customer left join typetender t on t.id = tender.typetender left join winner w on w.id = tender.winner where tender.id = #{id}")
         Tender findTenderbyId(Long id);
+    ////
+    @Select("Select tender.id,name_tender, bico_tender,gos_zakupki,date_start, date_finish,number_tender,  full_sum, win_sum, currency, price, rate, sum, c.name as customer, c.inn as inn, type as typetender, w.name as winner, product" +
+            " from tender left join customer c on c.id = tender.customer left join typetender t on t.id = tender.typetender left join winner w on w.id = tender.winner where date_start > '2021-01-01' and price > 0 and sum = 0")
+        List<Tender> findTender();
+    ///
     @Select("Select tender.id,name_tender, bico_tender,gos_zakupki,date_start, date_finish,number_tender,  full_sum, win_sum, currency, price, rate, sum, c.name as customer, c.inn as inn, type as typetender, w.name as winner, product" +
             " from tender left join customer c on c.id = tender.customer left join typetender t on t.id = tender.typetender left join winner w on w.id = tender.winner" +
             " where date_start between #{start_period} and #{finish_period} and customer like #{customer} and typetender like #{type} and winner like #{winner} and price between #{strat_price} and #{finish_price} order by date_start")
         List<Tender> findAllTenderTerms(ZonedDateTime start_period, ZonedDateTime finish_period, String type, String winner, String customer, BigDecimal strat_price, BigDecimal finish_price);
-   // @Select("SELECT * from keysight.tender where year(date_start) = #{year} and quarter(date_start) = #{quarter}")
+    // @Select("SELECT * from keysight.tender where year(date_start) = #{year} and quarter(date_start) = #{quarter}")
    //     List<Tender> findForOrders(int year, int quarter);
     @Insert("insert into tender (name_tender, bico_tender,gos_zakupki,date_start, date_finish,number_tender,  full_sum, win_sum, currency, price, rate, sum, customer, typetender, winner) " +
             "values (#{name_tender}, #{bico_tender},#{gos_zakupki},#{date_start}, #{date_finish},#{number_tender},  #{full_sum}, #{win_sum}, #{currency}, #{price}, #{rate}, #{sum}, #{customer}, #{typetender}, #{winner}) ")
         Long insertTender(String name_tender, String bico_tender, String gos_zakupki, ZonedDateTime date_start,ZonedDateTime date_finish, String number_tender, BigDecimal full_sum, BigDecimal win_sum, String currency, BigDecimal price, Double rate, BigDecimal sum, Long customer, Long typetender, Long winner);
     @Update("Update tender set product = #{product} where id = #{id}")
         Long UpdateProduct(String product, Long id);
-    @Update("Update tender set price = #{price} where id = #{id}")
-        Long UpdateSum(BigDecimal price,Long id);
+    @Update("Update tender set price = #{price}, sum = #{sum} where id = #{id}")
+        Long UpdateSum(BigDecimal price, BigDecimal sum,Long id);
+    @Update("Update tender set rate =  #{rate}, sum = #{sum} where id = #{id}")
+        Long UpdateRate(Double rate, BigDecimal sum, Long id);
 ///////////////////////////////////////////////////////////
 //              ProductCategory SQL
 ///////////////////////////////////////////////////////////
@@ -50,12 +57,16 @@ public interface TableMapper {
 ///////////////////////////////////////////////////////////
     @Select("Select * from spectrum_analyser")
         List<Spectrum_analyzers> findAllSpectrum_analysers();
-    @Select("Select pr.id, vendor_code, frequency,vendor as vendor_id,  name as vendor from spectrum_analyser as pr left join vendor v on pr.vendor = v.id")
+    @Select("Select pr.id, vendor_code, frequency,vendor as vendor_id, portable, usb,  name as vendor from spectrum_analyser as pr left join vendor v on pr.vendor = v.id")
         List<Product> findAllSpectrum_analyserToProduct();
-    @Select("Select pr.id, vendor_code, frequency,vendor as vendor_id,  name as vendor from spectrum_analyser as pr left join vendor v on pr.vendor = v.id where pr.id = #{id_product} limit  1")
+    @Select("Select pr.id, vendor_code, frequency,vendor as vendor_id, portable, usb,  name as vendor from spectrum_analyser as pr left join vendor v on pr.vendor = v.id where pr.id = #{id_product} limit  1")
         Product findAllSpectrum_analyserToProductById(Long id_product);
-    @Select("Select id,vendor_code, vendor as vendor_id from spectrum_analyser where id = #{id} limit 1")
+    @Select("Select id,vendor_code, vendor as vendor_id, portable, usb from spectrum_analyser where id = #{id} limit 1")
         Product findOneSpectrum_analyserById(Long id);
+    @Update("Update spectrum_analyser set vendor_code = #{vendor_code}, frequency = #{frequency},vendor = #{vendor}, portable = #{portable}, usb= #{usb} where id = #{id}")
+        Long UpdateSpectrum_analyser(String vendor_code, double frequency, Long vendor, Long id, boolean portable, boolean usb);
+    @Insert("Insert into spectrum_analyser (vendor_code, frequency ,vendor, portable, usb) values(#{vendor_code}, #{frequency},#{vendor}, #{portable},#{usb})")
+        Long InsertSpectrum_analyser(String vendor_code, double frequency, Long vendor, boolean portable, boolean usb);
 ///////////////////////////////////////////////////////////
 //              SignalGenerator SQL     signal_generator
 ///////////////////////////////////////////////////////////
@@ -67,6 +78,10 @@ public interface TableMapper {
         Product findAllSignalGeneratorToProductById(Long id_product);
     @Select("Select id,vendor_code, vendor as vendor_id from signal_generator where id = #{id} limit 1")
         Product findOneSignalGeneratorById(Long id);
+    @Update("Update signal_generator set vendor_code = #{vendor_code}, frequency = #{frequency},vendor = #{vendor} where id = #{id}")
+    Long UpdateSignalGenerator(String vendor_code, double frequency, Long vendor, Long id);
+    @Insert("Insert into signal_generator (vendor_code, frequency ,vendor) values(#{vendor_code}, #{frequency},#{vendor}")
+    Long InsertSignalGenerator(String vendor_code, double frequency, Long vendor);
 ///////////////////////////////////////////////////////////
 //              PulseGenerator SQL      pulse_generator
 ///////////////////////////////////////////////////////////
@@ -78,6 +93,10 @@ public interface TableMapper {
         Product findAllPulseGeneratorToProductById(Long id_product);
     @Select("Select id,vendor_code, vendor as vendor_id from pulse_generator where id = #{id} limit 1")
         Product findOnePulseGeneratorById(Long id);
+    @Update("Update pulse_generator set vendor_code = #{vendor_code}, frequency = #{frequency},vendor = #{vendor} where id = #{id}")
+    Long UpdatePulseGenerator(String vendor_code, double frequency, Long vendor, Long id);
+    @Insert("Insert into pulse_generator (vendor_code, frequency ,vendor) values(#{vendor_code}, #{frequency},#{vendor})")
+    Long InsertPulseGenerator(String vendor_code, double frequency, Long vendor);
 ///////////////////////////////////////////////////////////
 //              SignalAnalyzer SQL      signal_analyzer
 ///////////////////////////////////////////////////////////
@@ -89,6 +108,10 @@ public interface TableMapper {
         Product findAllSignalAnalyzerToProductById(Long id_product);
     @Select("Select id,vendor_code, vendor as vendor_id from signal_analyzer where id = #{id} limit 1")
         Product findOneSignalAnalyzerById(Long id);
+    @Update("Update signal_analyzer set vendor_code = #{vendor_code}, frequency = #{frequency},vendor = #{vendor} where id = #{id}")
+    Long UpdateSignalAnalyzer(String vendor_code, double frequency, Long vendor, Long id);
+    @Insert("Insert into signal_analyzer (vendor_code, frequency ,vendor) values(#{vendor_code}, #{frequency},#{vendor})")
+    Long InsertSignalAnalyzer(String vendor_code, double frequency, Long vendor);
 ///////////////////////////////////////////////////////////
 //              NetworkAnalyzers SQL        network_analyzers
 ///////////////////////////////////////////////////////////
@@ -100,8 +123,10 @@ public interface TableMapper {
         Product findAllNetworkAnalyzersToProductById(Long id_product);
     @Select("Select id,vendor_code, vendor as vendor_id from network_analyzers where id = #{id} limit 1")
         Product findOneNetworkAnalyzersById(Long id);
-    @Insert("Insert into network_analyzers (vendor_code, vendor) values(#{vendor_code},#{vendor})")
-        Long insertNetworkAnalyzers(String vendor_code, Long vendor);
+    @Update("Update  network_analyzers set vendor_code = #{vendor_code}, frequency = #{frequency},vendor = #{vendor}, usb= #{usb} where id = #{id}")
+    Long UpdateNetworkAnalyzers(String vendor_code, double frequency, Long vendor, Long id, boolean usb);
+    @Insert("Insert into  network_analyzers (vendor_code, frequency ,vendor, usb) values(#{vendor_code}, #{frequency},#{vendor},#{usb})")
+    Long InsertNetworkAnalyzers(String vendor_code, double frequency, Long vendor, boolean usb);
 ///////////////////////////////////////////////////////////
 //              Oscilloscope SQL        oscilloscope
 ///////////////////////////////////////////////////////////
@@ -113,6 +138,10 @@ public interface TableMapper {
         Product findAllOscilloscopeToProductById(Long id_product);
     @Select("Select id,vendor_code, vendor as vendor_id from oscilloscope where id = #{id} limit 1")
         Product findOneOscilloscopeById(Long id);
+    @Update("Update oscilloscope set vendor_code = #{vendor_code}, frequency = #{frequency},vendor = #{vendor}, vxi = #{portable}, usb= #{usb}, channel =#{channel} where id = #{id}")
+    Long UpdateOscilloscope(String vendor_code, double frequency, Long vendor, Long id, boolean vxi, boolean usb, double channel);
+    @Insert("Insert into oscilloscope (vendor_code, frequency ,vendor, vxi, usb, channel) values(#{vendor_code}, #{frequency},#{vendor}, #{vxi},#{usb}, #{channel})")
+    Long InsertOscilloscope(String vendor_code, double frequency, Long vendor, boolean vxi, boolean usb, double channel);
 ///////////////////////////////////////////////////////////
 //              AnotherProduct SQL      another_product
 ///////////////////////////////////////////////////////////
@@ -124,6 +153,10 @@ public interface TableMapper {
         Product findAllAnotherProductToProductById(Long id_product);
     @Select("Select name as vendor_code from another_product where id = #{id} limit 1")
         Product findOneAnotherProductById(Long id);
+    @Update("Update  another_product set name = #{vendor_code}")
+    Long UpdateAnotherProduct(String vendor_code, Long id);
+    @Insert("Insert into  another_product (name) values(#{vendor_code})")
+    Long InsertAnotherProduct(String vendor_code);
 ///////////////////////////////////////////////////////////
 //              Customer SQL
 ///////////////////////////////////////////////////////////
@@ -197,6 +230,10 @@ public interface TableMapper {
         List<String> findVendorForOrders(int year, int quarter, Long category, String category_en);
     @Select("SELECT trim(name) from (Select distinct tender.id, orders.comment as name from keysight.tender join keysight.orders on orders.tender = tender.id left join ${category_en} as prod on prod.id = orders.id_product where year(date_start) = #{year} and quarter(date_start) = #{quarter} and product_category = #{category} and prod.vendor = 1) as c")
         List<String> findNoVendorForOrders(int year, int quarter, Long category, String category_en);
+    @Select("SELECT tender.id,name_tender, bico_tender,gos_zakupki,date_start, date_finish,number_tender,  full_sum, win_sum, currency, tender.price, rate, sum, c.name as customer, c.inn as inn, type as typetender, w.name as winner, product" +
+            " FROM keysight.tender left join customer c on c.id = tender.customer left join typetender t on t.id = tender.typetender left join winner w on w.id = tender.winner  left join orders o on tender.id = o.tender WHERE o.id_product like #{product} and  o.product_category = #{category} and (date_start between #{dateStart} and #{dateFinish})"
+            )
+    List<Tender> TenderOnProduct (Long category, ZonedDateTime dateStart, ZonedDateTime dateFinish, String product);
 ///////////////////////////////////////////////////////////
 //              Universal SQL
 ///////////////////////////////////////////////////////////

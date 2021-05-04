@@ -30,7 +30,8 @@ public class ApiController {
     private  final TableMapper tableMapper;
     @Autowired
     private SearchAtribut searchAtribut;
-
+    @Autowired
+    private GetCurrency getCurrency;
 
     public ApiController(TableMapper tableMapper) {
         this.tableMapper = tableMapper;
@@ -126,7 +127,7 @@ public class ApiController {
             return tableMapper.findAllSignalAnalyzerToProductById(id_product);
         }
         else if (id == 5){
-            //анализатор сигналов
+            //анализатор цепей
             return tableMapper.findAllNetworkAnalyzersToProductById(id_product);
         }
         else if (id == 6){
@@ -216,11 +217,14 @@ public class ApiController {
 
         LinkedList<Tender> tenders = new LinkedList<>();
         File temp = new File("C:\\Users\\egkozhin\\IdeaProjects\\application\\temp.xlsx");
-
+        DateTimeFormatter formatCurrency = DateTimeFormatter.ofPattern("dd/MM/yyyy");
         excel.transferTo(temp);
         InputStream ExcelFileToRead = new FileInputStream(temp);
         XSSFWorkbook workbook = new XSSFWorkbook(ExcelFileToRead);
         XSSFSheet sheet = workbook.getSheetAt(0);
+
+        ZonedDateTime dateCurrency = ZonedDateTime.parse(sheet.getRow(1).getCell(8).getStringCellValue() + " 00:00:00 Z", format_date).plusDays(1);
+        Map<String,Double> currency = getCurrency.currency(dateCurrency.format(formatCurrency));
         int count = 1;
         while (sheet.getRow(count).getCell(0) != null) {
             XSSFRow row = sheet.getRow(count);
@@ -237,22 +241,24 @@ public class ApiController {
             else{
                 System.out.println("ДОБАВИЛ");
                 String INNCustomer = new DataFormatter().formatCellValue(row.getCell(3));
-
-                        id = tableMapper.insertTender(row.getCell(0).getStringCellValue(),
-                            "https://www.bicotender.ru/tc/tender/show/tender_id/" + numberTender,
-                            row.getCell(1).getStringCellValue(),
-                            ZonedDateTime.parse(row.getCell(8).getStringCellValue() + " 00:00:00 Z", format_date),
-                            ZonedDateTime.parse(row.getCell(9).getStringCellValue() + " Z", format_date),
-                            numberTender,
-                            new BigDecimal(row.getCell(4).getNumericCellValue()).setScale(2, BigDecimal.ROUND_CEILING),
-                            new BigDecimal(0),
-                            row.getCell(5).getStringCellValue(),
-                            new BigDecimal(row.getCell(4).getNumericCellValue()).setScale(2, BigDecimal.ROUND_CEILING),
-                            0.0,
-                            new BigDecimal(0),
-                            searchAtribut.findCustomer(INNCustomer, sheet.getRow(count).getCell(2).getStringCellValue()),
-                            searchAtribut.findTypetender(row.getCell(6).getStringCellValue()),
-                                1L
+                ZonedDateTime dateStart = ZonedDateTime.parse(row.getCell(8).getStringCellValue() + " 00:00:00 Z", format_date).plusDays(1);
+                currency = getCurrency.currency(dateStart.format(formatCurrency));
+                double rate = row.getCell(5).getStringCellValue().equals("RUB")  ? 1 : currency.get(row.getCell(5).getStringCellValue());
+                id = tableMapper.insertTender(row.getCell(0).getStringCellValue(),
+                        "https://www.bicotender.ru/tc/tender/show/tender_id/" + numberTender,
+                        row.getCell(1).getStringCellValue(),
+                        ZonedDateTime.parse(row.getCell(8).getStringCellValue() + " 00:00:00 Z", format_date),
+                        ZonedDateTime.parse(row.getCell(9).getStringCellValue() + " Z", format_date),
+                        numberTender,
+                        new BigDecimal(row.getCell(4).getNumericCellValue()).setScale(2, BigDecimal.ROUND_CEILING),
+                        new BigDecimal(0),
+                        row.getCell(5).getStringCellValue(),
+                        new BigDecimal(row.getCell(4).getNumericCellValue()).setScale(2, BigDecimal.ROUND_CEILING),
+                        rate,
+                        new BigDecimal(row.getCell(4).getNumericCellValue()).setScale(2, BigDecimal.ROUND_CEILING).multiply(new BigDecimal(rate)),
+                        searchAtribut.findCustomer(INNCustomer, sheet.getRow(count).getCell(2).getStringCellValue()),
+                        searchAtribut.findTypetender(row.getCell(6).getStringCellValue()),
+                        1L
                         );
                 id = tableMapper.findTenderByNumber_tender(numberTender);
                 System.out.println(id);
@@ -549,17 +555,80 @@ public class ApiController {
     }
     @PostMapping("/saveProduct/{category}")
     @ResponseBody
-    String saveProduct(@RequestBody Product product, @PathVariable Long category ){
-        if(product.getId() != null){
+    List<Product> saveProduct(@RequestBody Product product, @PathVariable Long category ){
+        if(category == 1L){
+            //анализатор спектра\
+            Long a = product.getId() == null?
+                    tableMapper.InsertSpectrum_analyser(product.getVendor_code(),product.getFrequency(),product.getVendor_id(),product.getPortable(),product.getUsb()) :
+                    tableMapper.UpdateSpectrum_analyser(product.getVendor_code(),product.getFrequency(),product.getVendor_id(),product.getId(),product.getPortable(),product.getUsb()) ;
+            return tableMapper.findAllSpectrum_analyserToProduct();
         }
-        System.out.println(product.toString());
-        System.out.println(category);
-        return "good";
+        else if (category == 2L){
+            //генератор сигналов
+            Long a = product.getId() == null?
+                    tableMapper.InsertSignalGenerator(product.getVendor_code(),product.getFrequency(),product.getVendor_id()) :
+                    tableMapper.UpdateSignalGenerator(product.getVendor_code(),product.getFrequency(),product.getVendor_id(),product.getId()) ;
+            return tableMapper.findAllSignalGeneratorToProduct();
+        }
+        else if (category == 3L){
+            //генератор импульсов
+            Long a = product.getId() == null?
+                    tableMapper.InsertPulseGenerator(product.getVendor_code(),product.getFrequency(),product.getVendor_id()) :
+                    tableMapper.UpdatePulseGenerator(product.getVendor_code(),product.getFrequency(),product.getVendor_id(),product.getId()) ;
+            return tableMapper.findAllPulseGeneratorToProduct();
+        }
+        else if (category == 4L){
+            //анализатор сигналов
+            Long a = product.getId() == null?
+            tableMapper.InsertSignalAnalyzer(product.getVendor_code(),product.getFrequency(),product.getVendor_id()) :
+            tableMapper.UpdateSignalAnalyzer(product.getVendor_code(),product.getFrequency(),product.getVendor_id(),product.getId()) ;
+            return tableMapper.findAllSignalAnalyzerToProduct();
+        }
+        else if (category == 5L){
+            //анализатор цепей
+            Long a = product.getId() == null?
+            tableMapper.InsertNetworkAnalyzers(product.getVendor_code(),product.getFrequency(),product.getVendor_id(),product.getUsb()) :
+            tableMapper.UpdateNetworkAnalyzers(product.getVendor_code(),product.getFrequency(),product.getVendor_id(),product.getId(),product.getUsb()) ;
+            return tableMapper.findAllNetworkAnalyzersToProduct();
+        }
+        else if (category == 6L){
+            //осциллограф
+            Long a = product.getId() == null?
+                    tableMapper.InsertOscilloscope(product.getVendor_code(),product.getFrequency(),product.getVendor_id(),product.getVxi(),product.getUsb(),product.getChannel()) :
+                    tableMapper.UpdateOscilloscope(product.getVendor_code(),product.getFrequency(),product.getVendor_id(),product.getId(),product.getVxi(),product.getUsb(),product.getChannel()) ;
+            return tableMapper.findAllOscilloscopeToProduct();
+        }
+        else{
+            //Продукты
+            Long a = product.getId() == null?
+                    tableMapper.InsertAnotherProduct(product.getVendor_code()) :
+                    tableMapper.UpdateAnotherProduct(product.getVendor_code(),product.getId()) ;
+            return tableMapper.findAllAnotherProductToProduct();
+        }
+
     }
     @PostMapping("/saveTender")
     @ResponseBody
     String saveTender(@RequestBody Tender tender){
-        tableMapper.UpdateSum(tender.getPrice(), tender.getId());
+        tableMapper.UpdateSum(tender.getPrice(), tender.getPrice().multiply(new BigDecimal(tender.getRate())), tender.getId());
         return "good";
+    }
+    @RequestMapping( path = "/Test")
+    @ResponseBody  String Test (){
+        DateTimeFormatter formatCurrency = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+        List<Tender> tenderList = tableMapper.findAllTender();
+        for (Tender tender : tenderList){
+            System.out.println(tender.getId());
+            Map<String,Double> currency = getCurrency.currency(tender.getDate_start().format(formatCurrency));
+            double rate = tender.getCurrency().equals("RUB") || tender.getCurrency().trim().length() == 0? 1: currency.get(tender.getCurrency());
+            tableMapper.UpdateRate(rate,tender.getPrice().multiply(new BigDecimal(rate)),tender.getId());
+        }
+      return "good";
+    }
+    @PostMapping("/TenderOnProduct")
+    @ResponseBody
+    List<Tender> TenderOnProduct( @RequestBody TenderProduct json ) {
+        System.out.println(json.toString());
+        return tableMapper.TenderOnProduct(json.getProductCategory(), json.getDateStart(),json.getDateFinish(), json.getProduct());
     }
 }
