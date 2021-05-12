@@ -153,7 +153,7 @@ public interface TableMapper {
         Product findAllAnotherProductToProductById(Long id_product);
     @Select("Select name as vendor_code from another_product where id = #{id} limit 1")
         Product findOneAnotherProductById(Long id);
-    @Update("Update  another_product set name = #{vendor_code}")
+    @Update("Update  another_product set name = #{vendor_code} where id = #{id}")
     Long UpdateAnotherProduct(String vendor_code, Long id);
     @Insert("Insert into  another_product (name) values(#{vendor_code})")
     Long InsertAnotherProduct(String vendor_code);
