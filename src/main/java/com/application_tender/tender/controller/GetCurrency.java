@@ -9,6 +9,7 @@ import com.application_tender.tender.subsidiaryModels.ValCurs;
 import com.application_tender.tender.subsidiaryModels.Valute;
 import org.apache.commons.httpclient.HttpClient;
 import org.apache.commons.httpclient.methods.PostMethod;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Controller;
 
 
@@ -17,6 +18,8 @@ import javax.xml.bind.JAXBContext;
 import javax.xml.bind.Unmarshaller;
 @Controller
 public class GetCurrency {
+    @Value("${file.currensy}")
+    private String pathname;
     public Map<String,Double> currency(String date){
         Map<String,Double> returnCurrency = new HashMap<>();
         String url = "http://www.cbr.ru/scripts/XML_daily.asp?";
@@ -34,7 +37,7 @@ public class GetCurrency {
             if (statusCode != -1) {
                 in = method.getResponseBodyAsStream();
             }
-            File file = new File("C:\\Users\\egkozhin\\IdeaProjects\\application\\test.xml");
+            File file = new File(pathname);
             copyInputStreamToFile(in, file);
             assert in != null;
 

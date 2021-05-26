@@ -24,7 +24,7 @@ public class SearchAtribut {
         }
         if(idCustomer == null){
             //добавление новой записи
-            tableMapper.insertCustomer(name,inn);
+            tableMapper.insertCustomer(name,inn,1L); // Заменить
             idCustomer = tableMapper.findCustomerByNameandINN(name,inn);
         }
         else {

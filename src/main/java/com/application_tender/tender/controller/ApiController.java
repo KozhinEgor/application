@@ -4,19 +4,18 @@ package com.application_tender.tender.controller;
 import com.application_tender.tender.mapper.TableMapper;
 import com.application_tender.tender.models.*;
 import com.application_tender.tender.subsidiaryModels.*;
+import org.apache.poi.ss.usermodel.CellType;
 import org.apache.poi.ss.usermodel.DataFormatter;
 import org.apache.poi.xssf.usermodel.XSSFRow;
 import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.io.InputStream;
+import java.io.*;
 import java.math.BigDecimal;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
@@ -32,7 +31,8 @@ public class ApiController {
     private SearchAtribut searchAtribut;
     @Autowired
     private GetCurrency getCurrency;
-
+    @Value("${file.pathname}")
+    private String pathname;
     public ApiController(TableMapper tableMapper) {
         this.tableMapper = tableMapper;
     }
@@ -55,7 +55,6 @@ public class ApiController {
     @PostMapping("/Tender")
     @ResponseBody
     List<Tender> Tender(@RequestBody ReceivedJSON json){
-        System.out.println(json.getDateStart());
         return tableMapper.findAllTenderTerms(json.getDateStart(),
                                             json.getDateFinish(),
                                             json.getType(),
@@ -79,6 +78,7 @@ public class ApiController {
     List<Product> Product(@PathVariable int id){
         if(id == 1){
             //анализатор спектра
+
             return tableMapper.findAllSpectrum_analyserToProduct();
         }
         else if (id == 2){
@@ -216,7 +216,7 @@ public class ApiController {
     List<Tender> addTender(MultipartFile excel) throws IOException {
 
         LinkedList<Tender> tenders = new LinkedList<>();
-        File temp = new File("C:\\Users\\egkozhin\\IdeaProjects\\application\\temp.xlsx");
+        File temp = new File(pathname);
         DateTimeFormatter formatCurrency = DateTimeFormatter.ofPattern("dd/MM/yyyy");
         excel.transferTo(temp);
         InputStream ExcelFileToRead = new FileInputStream(temp);
@@ -236,19 +236,24 @@ public class ApiController {
             if (tableMapper.findTenderByNumber_tender(numberTender) != null){
 
                 id = tableMapper.findTenderByNumber_tender(numberTender);
-                System.out.println(id);
+
             }
             else{
-                System.out.println("ДОБАВИЛ");
+
                 String INNCustomer = new DataFormatter().formatCellValue(row.getCell(3));
                 ZonedDateTime dateStart = ZonedDateTime.parse(row.getCell(8).getStringCellValue() + " 00:00:00 Z", format_date).plusDays(1);
                 currency = getCurrency.currency(dateStart.format(formatCurrency));
                 double rate = row.getCell(5).getStringCellValue().equals("RUB")  ? 1 : currency.get(row.getCell(5).getStringCellValue());
                 id = tableMapper.insertTender(row.getCell(0).getStringCellValue(),
                         "https://www.bicotender.ru/tc/tender/show/tender_id/" + numberTender,
-                        row.getCell(1).getStringCellValue(),
+                        row.getCell(1).getHyperlink().getAddress(),
                         ZonedDateTime.parse(row.getCell(8).getStringCellValue() + " 00:00:00 Z", format_date),
-                        ZonedDateTime.parse(row.getCell(9).getStringCellValue() + " Z", format_date),
+                        row.getCell(9).getStringCellValue().length() == 10 ?  ZonedDateTime.parse(row.getCell(9).getStringCellValue() + " 00:00:00 Z", format_date) :
+                                ZonedDateTime.parse(row.getCell(9).getStringCellValue() + " Z", format_date),
+                        row.getCell(10).getCellType() != CellType.BLANK ?
+                                    row.getCell(9).getStringCellValue().length() == 10 ?  ZonedDateTime.parse(row.getCell(9).getStringCellValue() + " 00:00:00 Z", format_date) :
+                                    ZonedDateTime.parse(row.getCell(9).getStringCellValue() + " Z", format_date):
+                                null,
                         numberTender,
                         new BigDecimal(row.getCell(4).getNumericCellValue()).setScale(2, BigDecimal.ROUND_CEILING),
                         new BigDecimal(0),
@@ -261,7 +266,7 @@ public class ApiController {
                         1L
                         );
                 id = tableMapper.findTenderByNumber_tender(numberTender);
-                System.out.println(id);
+
             }
             tenders.add(tableMapper.findTenderbyId(id));
             count++;
@@ -287,7 +292,6 @@ public class ApiController {
                 if (ordersINDB.contains(ordersDB.getId())) {
                     ordersINDB.remove(ordersDB.getId());
                 }
-                System.out.println(ordersDB.toString());
                 if (ordersDB.getId() == null) {
 
                     tableMapper.insertOrder(
@@ -416,14 +420,13 @@ public class ApiController {
     @ResponseBody public ArrayList<ReportQuarter> getQuartalTenderReport (@PathVariable Long category){
         int year = ZonedDateTime.now().getYear();
         int quartal = ZonedDateTime.now().get(IsoFields.QUARTER_OF_YEAR);
-        int y = year - 2;
-        int q = quartal;
+        int y = 2018;
+        int q = 3;
         ArrayList<ReportQuarter> reportQuarters = new ArrayList<>();
         String category_en = tableMapper.findOneCategoryENById(category);
 
         while (y != year || q != quartal+1) {
-                        System.out.println(y);
-            System.out.println(q);
+
             reportQuarters.add(0,tableMapper.findForOrders(y, q, category));
 
             if (q == 4) {
@@ -440,18 +443,18 @@ public class ApiController {
     @ResponseBody public ArrayList<ReportVendorQuarter>getQuartalVendorReport (@PathVariable Long category){
         int year = ZonedDateTime.now().getYear();
         int quartal = ZonedDateTime.now().get(IsoFields.QUARTER_OF_YEAR);
-        int y = year - 2;
-        int q = quartal;
+        int y = 2018;
+        int q = 3;
 
         ArrayList<ReportVendorQuarter> reportVendorQuarters = new ArrayList<>();
         String category_en = tableMapper.findOneCategoryENById(category);
 
         while (y != year || q != quartal+1) {
             Map<String,Integer> vendorCount = new HashMap<String,Integer>();
-            System.out.println(y);
-            System.out.println(q);
+            System.out.println(y+" "+q);
             List<String> vendors = tableMapper.findVendorForOrders(y,q,category,category_en);
             for (String vendor : vendors) {
+                System.out.println(vendor);
                 if(vendor.equals("No vendor")){}
                 else if (!vendorCount.containsKey(vendor)) {
                     vendorCount.put(vendor, 1);
@@ -499,16 +502,15 @@ public class ApiController {
     @ResponseBody public ArrayList<ReportVendorQuarter>getQuartalNoVendorReport (@PathVariable Long category){
         int year = ZonedDateTime.now().getYear();
         int quartal = ZonedDateTime.now().get(IsoFields.QUARTER_OF_YEAR);
-        int y = year - 2;
-        int q = quartal;
+        int y = 2018;
+        int q = 3;
 
         ArrayList<ReportVendorQuarter> reportVendorQuarters = new ArrayList<>();
         String category_en = tableMapper.findOneCategoryENById(category);
 
         while (y != year || q != quartal+1) {
             Map<String,Integer> vendorCount = new HashMap<String,Integer>();
-            System.out.println(y);
-            System.out.println(q);
+
             List<String> vendors = tableMapper.findNoVendorForOrders(y,q,category,category_en);
             for (String vendor : vendors) {
                 if (!vendorCount.containsKey(vendor)) {
@@ -614,21 +616,18 @@ public class ApiController {
         return "good";
     }
     @RequestMapping( path = "/Test")
-    @ResponseBody  String Test (){
-        DateTimeFormatter formatCurrency = DateTimeFormatter.ofPattern("dd/MM/yyyy");
-        List<Tender> tenderList = tableMapper.findAllTender();
-        for (Tender tender : tenderList){
-            System.out.println(tender.getId());
-            Map<String,Double> currency = getCurrency.currency(tender.getDate_start().format(formatCurrency));
-            double rate = tender.getCurrency().equals("RUB") || tender.getCurrency().trim().length() == 0? 1: currency.get(tender.getCurrency());
-            tableMapper.UpdateRate(rate,tender.getPrice().multiply(new BigDecimal(rate)),tender.getId());
+    @ResponseBody  String Test () throws IOException {
+        for (long i = 6480L;i<6577L;i++){
+            Tender tender = tableMapper.findTenderbyId(i);
+            tender.setDate_start(tender.getDate_start().plusHours(3));
+            tender.setDate_finish(tender.getDate_finish().plusHours(3));
+            tableMapper.UpdateDate(tender.getId(),tender.getDate_start(),tender.getDate_finish());
         }
-      return "good";
+        return "good";
     }
     @PostMapping("/TenderOnProduct")
     @ResponseBody
     List<Tender> TenderOnProduct( @RequestBody TenderProduct json ) {
-        System.out.println(json.toString());
         return tableMapper.TenderOnProduct(json.getProductCategory(), json.getDateStart(),json.getDateFinish(), json.getProduct());
     }
 }

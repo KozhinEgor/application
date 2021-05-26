@@ -34,6 +34,8 @@ public class Tender {
 
     private  ZonedDateTime date_finish;
 
+    private  ZonedDateTime date_tranding;
+
     private BigDecimal full_sum;
 
     private BigDecimal win_sum;
@@ -157,6 +159,14 @@ public class Tender {
         this.date_finish = date_finish;
     }
 
+    public ZonedDateTime getDate_tranding() {
+        return date_tranding;
+    }
+
+    public void setDate_tranding(ZonedDateTime date_tranding) {
+        this.date_tranding = date_tranding;
+    }
+
     public BigDecimal getFull_sum() {
         return full_sum;
     }
@@ -206,6 +216,7 @@ public class Tender {
                 ", sum=" + sum +
                 ", date_start=" + date_start +
                 ", date_finish=" + date_finish +
+                ", date_tranding=" + date_tranding +
                 ", full_sum=" + full_sum +
                 ", win_sum=" + win_sum +
                 ", winner='" + winner + '\'' +
