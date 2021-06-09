@@ -3,20 +3,28 @@ package com.application_tender.tender.controller;
 
 import com.application_tender.tender.mapper.TableMapper;
 import com.application_tender.tender.models.*;
+import com.application_tender.tender.service.FileService;
 import com.application_tender.tender.subsidiaryModels.*;
-import org.apache.poi.ss.usermodel.CellType;
-import org.apache.poi.ss.usermodel.DataFormatter;
-import org.apache.poi.xssf.usermodel.XSSFRow;
-import org.apache.poi.xssf.usermodel.XSSFSheet;
-import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.apache.poi.common.usermodel.HyperlinkType;
+import org.apache.poi.hssf.util.HSSFColor;
+import org.apache.poi.openxml4j.exceptions.InvalidFormatException;
+import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.xssf.usermodel.*;
+import org.apache.poi.xssf.usermodel.extensions.XSSFCellBorder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.FileSystemResource;
+import org.springframework.core.io.Resource;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.*;
 import java.math.BigDecimal;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.IsoFields;
@@ -26,6 +34,8 @@ import java.util.*;
 @RequestMapping(path = "/demo")
 public class ApiController {
     private final DateTimeFormatter format_date= DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm:ss z");
+    private final DateTimeFormatter format_dateFile= DateTimeFormatter.ofPattern("dd-MM-yyyy_HH-mm");
+
     private  final TableMapper tableMapper;
     @Autowired
     private SearchAtribut searchAtribut;
@@ -33,8 +43,10 @@ public class ApiController {
     private GetCurrency getCurrency;
     @Value("${file.pathname}")
     private String pathname;
-    public ApiController(TableMapper tableMapper) {
+    private final FileService fileService;
+    public ApiController(TableMapper tableMapper, FileService fileService) {
         this.tableMapper = tableMapper;
+        this.fileService = fileService;
     }
 
     @GetMapping("/TypeTender")
@@ -55,13 +67,7 @@ public class ApiController {
     @PostMapping("/Tender")
     @ResponseBody
     List<Tender> Tender(@RequestBody ReceivedJSON json){
-        return tableMapper.findAllTenderTerms(json.getDateStart(),
-                                            json.getDateFinish(),
-                                            json.getType(),
-                                            json.getWinner(),
-                                            json.getCustom(),
-                                            json.getMinSum(),
-                                            json.getMaxSum());
+       return searchAtribut.findTenderByTerms(json);
     }
     @GetMapping("/AnotherProduct")
     @ResponseBody
@@ -213,14 +219,14 @@ public class ApiController {
     }
     @RequestMapping(value = "/addTender", method = RequestMethod.POST, consumes = { "multipart/form-data" })
     @ResponseBody
-    List<Tender> addTender(MultipartFile excel) throws IOException {
+    List<Tender> addTender(MultipartFile excel) throws IOException, InvalidFormatException {
 
         LinkedList<Tender> tenders = new LinkedList<>();
         File temp = new File(pathname);
         DateTimeFormatter formatCurrency = DateTimeFormatter.ofPattern("dd/MM/yyyy");
         excel.transferTo(temp);
-        InputStream ExcelFileToRead = new FileInputStream(temp);
-        XSSFWorkbook workbook = new XSSFWorkbook(ExcelFileToRead);
+        //InputStream ExcelFileToRead= new InputStreamReader(new FileInputStream(temp), "UTF-8");
+        XSSFWorkbook workbook = new XSSFWorkbook(temp);
         XSSFSheet sheet = workbook.getSheetAt(0);
 
         ZonedDateTime dateCurrency = ZonedDateTime.parse(sheet.getRow(1).getCell(8).getStringCellValue() + " 00:00:00 Z", format_date).plusDays(1);
@@ -240,13 +246,14 @@ public class ApiController {
             }
             else{
 
-                String INNCustomer = new DataFormatter().formatCellValue(row.getCell(3));
+                String INNCustomer = new DataFormatter().formatCellValue(row.getCell(3)).trim();
+                System.out.println(INNCustomer);
                 ZonedDateTime dateStart = ZonedDateTime.parse(row.getCell(8).getStringCellValue() + " 00:00:00 Z", format_date).plusDays(1);
                 currency = getCurrency.currency(dateStart.format(formatCurrency));
                 double rate = row.getCell(5).getStringCellValue().equals("RUB")  ? 1 : currency.get(row.getCell(5).getStringCellValue());
                 id = tableMapper.insertTender(row.getCell(0).getStringCellValue(),
                         "https://www.bicotender.ru/tc/tender/show/tender_id/" + numberTender,
-                        row.getCell(1).getHyperlink().getAddress(),
+                        row.getCell(1).getStringCellValue(),
                         ZonedDateTime.parse(row.getCell(8).getStringCellValue() + " 00:00:00 Z", format_date),
                         row.getCell(9).getStringCellValue().length() == 10 ?  ZonedDateTime.parse(row.getCell(9).getStringCellValue() + " 00:00:00 Z", format_date) :
                                 ZonedDateTime.parse(row.getCell(9).getStringCellValue() + " Z", format_date),
@@ -272,7 +279,7 @@ public class ApiController {
             count++;
         }
 
-        ExcelFileToRead.close();
+        //ExcelFileToRead.close();
 
         return tenders;
     }
@@ -421,7 +428,7 @@ public class ApiController {
         int year = ZonedDateTime.now().getYear();
         int quartal = ZonedDateTime.now().get(IsoFields.QUARTER_OF_YEAR);
         int y = 2018;
-        int q = 3;
+        int q = 1;
         ArrayList<ReportQuarter> reportQuarters = new ArrayList<>();
         String category_en = tableMapper.findOneCategoryENById(category);
 
@@ -444,17 +451,15 @@ public class ApiController {
         int year = ZonedDateTime.now().getYear();
         int quartal = ZonedDateTime.now().get(IsoFields.QUARTER_OF_YEAR);
         int y = 2018;
-        int q = 3;
+        int q = 1;
 
         ArrayList<ReportVendorQuarter> reportVendorQuarters = new ArrayList<>();
         String category_en = tableMapper.findOneCategoryENById(category);
 
         while (y != year || q != quartal+1) {
             Map<String,Integer> vendorCount = new HashMap<String,Integer>();
-            System.out.println(y+" "+q);
             List<String> vendors = tableMapper.findVendorForOrders(y,q,category,category_en);
             for (String vendor : vendors) {
-                System.out.println(vendor);
                 if(vendor.equals("No vendor")){}
                 else if (!vendorCount.containsKey(vendor)) {
                     vendorCount.put(vendor, 1);
@@ -503,7 +508,7 @@ public class ApiController {
         int year = ZonedDateTime.now().getYear();
         int quartal = ZonedDateTime.now().get(IsoFields.QUARTER_OF_YEAR);
         int y = 2018;
-        int q = 3;
+        int q = 1;
 
         ArrayList<ReportVendorQuarter> reportVendorQuarters = new ArrayList<>();
         String category_en = tableMapper.findOneCategoryENById(category);
@@ -612,22 +617,224 @@ public class ApiController {
     @PostMapping("/saveTender")
     @ResponseBody
     String saveTender(@RequestBody Tender tender){
-        tableMapper.UpdateSum(tender.getPrice(), tender.getPrice().multiply(new BigDecimal(tender.getRate())), tender.getId());
+        tableMapper.UpdateTender(tender.getId(), tender.getName_tender(),tender.getBico_tender(),tender.getGos_zakupki(),tender.getDate_start(),tender.getDate_finish(),tender.getDate_tranding(),tender.getNumber_tender(),tender.getFull_sum(),tender.getWin_sum(),tender.getCurrency(),tender.getPrice(),tender.getRate(),tender.getSum(),Long.valueOf(tender.getCustomer()),Long.valueOf(tender.getTypetender()),Long.valueOf(tender.getWinner()),tender.isDublicate());
         return "good";
     }
     @RequestMapping( path = "/Test")
-    @ResponseBody  String Test () throws IOException {
-        for (long i = 6480L;i<6577L;i++){
-            Tender tender = tableMapper.findTenderbyId(i);
-            tender.setDate_start(tender.getDate_start().plusHours(3));
-            tender.setDate_finish(tender.getDate_finish().plusHours(3));
-            tableMapper.UpdateDate(tender.getId(),tender.getDate_start(),tender.getDate_finish());
-        }
-        return "good";
+    @ResponseBody  Long Test () throws IOException, InvalidFormatException {
+
+
+        return tableMapper.findCustomerByInn("5040001426");
     }
     @PostMapping("/TenderOnProduct")
     @ResponseBody
     List<Tender> TenderOnProduct( @RequestBody TenderProduct json ) {
         return tableMapper.TenderOnProduct(json.getProductCategory(), json.getDateStart(),json.getDateFinish(), json.getProduct());
     }
+    @PostMapping("/insertWinner")
+    @ResponseBody
+    String insertWinner(@RequestBody Winner winner){
+        if (winner.getId() == null){
+            tableMapper.insertWinner(winner.getInn(),winner.getName(),winner.getOgrn());
+        }
+        else {
+            tableMapper.updateWinner(winner.getId(), winner.getInn(),winner.getName(),winner.getOgrn());
+        }
+        return "good";
+    }
+    @PostMapping("/insertCustomer")
+    @ResponseBody
+    String insertCustomer(@RequestBody Customer customer){
+        if(customer.getId() == null){
+            tableMapper.insertCustomer(customer.getInn(),customer.getName(),Long.valueOf(customer.getCountry()) );
+        }
+        else{
+            tableMapper.updateCustomer(customer.getId(),customer.getInn(),customer.getName(),Long.valueOf(customer.getCountry()));
+        }
+        return "good";
+    }
+    @GetMapping("/Country")
+    @ResponseBody
+    List<Country> Country(){
+        return tableMapper.findAllCountry();
+    }
+    @GetMapping("/DeleteTender/{tender}")
+    @ResponseBody
+    String DeleteTender(@PathVariable Long tender){
+        System.out.println(tender);
+        tableMapper.DeleteTender(tender);
+        return "good";
+    }
+
+
+    @PostMapping("/File")
+    @ResponseBody
+    ResponseEntity<Resource> downloadFile(@RequestBody ReceivedJSON json) throws IOException {
+        List<Tender> tenders = searchAtribut.findTenderByTerms(json);
+        XSSFWorkbook workbook = new XSSFWorkbook();
+        CreationHelper createHelper = workbook.getCreationHelper();
+        XSSFSheet sheet = workbook.createSheet("Станица");
+        XSSFCellStyle hlinkstyle = workbook.createCellStyle();
+        XSSFFont hlinkfont = workbook.createFont();
+        hlinkfont.setUnderline(XSSFFont.U_SINGLE);
+        hlinkfont.setColor(new XSSFColor(new java.awt.Color(30,144,255)));
+        hlinkstyle.setFont(hlinkfont);
+
+        XSSFCellStyle body = workbook.createCellStyle();
+        XSSFColor colorborder = new XSSFColor(new java.awt.Color(0, 90, 170));
+        body.setBorderTop(BorderStyle.THIN);
+        body.setBorderColor(XSSFCellBorder.BorderSide.TOP,colorborder);
+        body.setBorderRight(BorderStyle.THIN);
+        body.setBorderColor(XSSFCellBorder.BorderSide.RIGHT,colorborder);
+        body.setBorderBottom(BorderStyle.THIN);
+        body.setBorderColor(XSSFCellBorder.BorderSide.BOTTOM,colorborder);
+        body.setBorderLeft(BorderStyle.THIN);
+        body.setBorderColor(XSSFCellBorder.BorderSide.LEFT,colorborder);
+
+        XSSFCellStyle header = workbook.createCellStyle();
+        header.setFillForegroundColor(new  XSSFColor(new java.awt.Color(0,102,204)));
+        header.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+//        header.setFillBackgroundColor();
+        XSSFFont headerFont = workbook.createFont();
+        headerFont.setColor(new XSSFColor(new java.awt.Color(255,255,255)));
+        header.setFont(headerFont);
+
+        XSSFCellStyle cellStyle = workbook.createCellStyle();
+        cellStyle.setDataFormat(
+                createHelper.createDataFormat().getFormat(format_dateFile.toString()));
+        int numberRow = 0;
+        XSSFRow row = sheet.createRow(numberRow);
+        sheet.setColumnWidth(0,39*256);
+        sheet.setColumnWidth(1,14*256);
+        sheet.setColumnWidth(2,14*256);
+        sheet.setColumnWidth(3,50*256);
+        sheet.setColumnWidth(4,39*256);
+        sheet.setColumnWidth(5,13*256);
+        sheet.setColumnWidth(6,14*256);
+        sheet.setColumnWidth(7,17*256);
+        sheet.setColumnWidth(8,4*256);
+        sheet.setColumnWidth(9,4*256);
+        sheet.setColumnWidth(10,20*256);
+        sheet.setColumnWidth(11,20*256);
+        sheet.setColumnWidth(12,12*256);
+        sheet.setColumnWidth(13,12*256);
+        sheet.setColumnWidth(14,12*256);
+        sheet.setColumnWidth(15,56*256);
+        sheet.setColumnWidth(16,39*256);
+        sheet.setColumnWidth(17,20*256);
+        row.createCell(0).setCellValue("Заказчик");
+        row.getCell(0).setCellStyle(header);
+        row.createCell(1).setCellValue("ИН");
+        row.getCell(1).setCellStyle(header);
+        row.createCell(2).setCellValue("Страна");
+        row.getCell(2).setCellStyle(header);
+        row.createCell(3).setCellValue("Название");
+        row.getCell(3).setCellStyle(header);
+        row.createCell(4).setCellValue("Госзакупки");
+        row.getCell(4).setCellStyle(header);
+        row.createCell(5).setCellValue("Тип тендера");
+        row.getCell(5).setCellStyle(header);
+        row.createCell(6).setCellValue("Номер");
+        row.getCell(6).setCellStyle(header);
+        row.createCell(7).setCellValue("Цена");
+        row.getCell(7).setCellStyle(header);
+        row.createCell(8).setCellValue("Валюта");
+        row.getCell(8).setCellStyle(header);
+        row.createCell(9).setCellValue("Курс");
+        row.getCell(9).setCellStyle(header);
+        row.createCell(10).setCellValue("Сумма");
+        row.getCell(10).setCellStyle(header);
+        row.createCell(11).setCellValue("Полная сумма");
+        row.getCell(11).setCellStyle(header);
+        row.createCell(12).setCellValue("Начало показа");
+        row.getCell(12).setCellStyle(header);
+        row.createCell(13).setCellValue("Окончание показа");
+        row.getCell(13).setCellStyle(header);
+        row.createCell(14).setCellValue("Дата торгов");
+        row.getCell(14).setCellStyle(header);
+        row.createCell(15).setCellValue("Продукты");
+        row.getCell(15).setCellStyle(header);
+        row.createCell(16).setCellValue("Победитель");
+        row.getCell(16).setCellStyle(header);
+        row.createCell(17).setCellValue("Сумма победителя");
+        row.getCell(17).setCellStyle(header);
+        for(Tender tender: tenders){
+            numberRow+=1;
+            row = sheet.createRow(numberRow);
+            row.createCell(0).setCellValue(tender.getCustomer());
+            row.getCell(0).setCellStyle(body);
+            row.createCell(1).setCellValue(tender.getInn());
+            row.getCell(1).setCellStyle(body);
+            row.createCell(2).setCellValue(tender.getCountry());
+            row.getCell(2).setCellStyle(body);
+
+            row.createCell(3).setCellValue(tender.getName_tender());
+            XSSFHyperlink link= (XSSFHyperlink)createHelper.createHyperlink(HyperlinkType.URL);
+            link.setAddress(tender.getBico_tender());row.getCell(0).setCellStyle(body);
+            row.getCell(3).setHyperlink((XSSFHyperlink) link);
+            row.getCell(3).setCellStyle(hlinkstyle);
+            XSSFHyperlink linkGos= (XSSFHyperlink)createHelper.createHyperlink(HyperlinkType.URL);
+            linkGos.setAddress(tender.getGos_zakupki());
+            row.createCell(4).setHyperlink((XSSFHyperlink) linkGos);
+            row.getCell(4).setCellValue(tender.getGos_zakupki());
+            row.getCell(4).setCellStyle(hlinkstyle);
+            row.createCell(5).setCellValue(tender.getTypetender());
+            row.getCell(5).setCellStyle(body);
+            row.createCell(6).setCellValue(tender.getNumber_tender());
+            row.getCell(6).setCellStyle(body);
+            row.createCell(7).setCellValue(tender.getPrice().doubleValue());
+            row.getCell(7).setCellStyle(body);
+            row.createCell(8).setCellValue(tender.getCurrency());
+            row.getCell(8).setCellStyle(body);
+            row.createCell(9).setCellValue(tender.getRate());
+            row.getCell(9).setCellStyle(body);
+            row.createCell(10).setCellValue(tender.getSum().doubleValue());
+            row.getCell(10).setCellStyle(body);
+            row.createCell(11).setCellValue(tender.getFull_sum().doubleValue());
+            row.getCell(11).setCellStyle(body);
+            row.createCell(12).setCellValue(tender.getDate_start().format(format_dateFile));
+            row.getCell(12).setCellStyle(body);
+            row.createCell(13).setCellValue(tender.getDate_finish().format(format_dateFile));
+            row.getCell(13).setCellStyle(body);
+            if(tender.getDate_tranding() != null){
+                row.createCell(14).setCellValue( tender.getDate_tranding().format(format_dateFile));
+                row.getCell(14).setCellStyle(body);
+            }
+            else{
+                row.createCell(14).setCellValue( "");
+                row.getCell(14).setCellStyle(body);
+            }
+            row.createCell(15).setCellValue(tender.getProduct());
+            row.getCell(15).setCellStyle(body);
+            row.createCell(16).setCellValue(tender.getWinner());
+            row.getCell(16).setCellStyle(body);
+            row.createCell(17).setCellValue(tender.getWin_sum().doubleValue());
+            row.getCell(17).setCellStyle(body);
+        }
+        File file = new File(pathname);
+        FileOutputStream fileOutputStream = new FileOutputStream(file);
+        workbook.write(fileOutputStream);
+        fileOutputStream.close();
+        Resource file1 = fileService.download("temp.xlsx");
+        Path path = file1.getFile()
+                .toPath();
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_TYPE, Files.probeContentType(path))
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + file1.getFilename() + "\"")
+                .body(file1);
+    }
+//        HttpHeaders headers = new HttpHeaders();
+//        headers.add("Cache-Control", "no-cache, no-store, must-revalidate");
+//        String suffixName = file.getName().substring(file.getName().lastIndexOf("."));// 后缀名
+//        headers.add("Content-Disposition", "attachment; filename=Tender" + ZonedDateTime.now().format(format_dateFile) + suffixName);
+//        headers.add("Pragma", "no-cache");
+//        headers.add("Access-Control-Expose-Headers", "Content-Disposition");
+//        headers.add("Expires", "0");
+//        headers.add("Last-Modified", new Date().toString());
+//        headers.add("ETag", String.valueOf(System.currentTimeMillis()));
+//
+//        return ResponseEntity.ok().headers(headers).contentLength(file.length())
+//                .contentType(MediaType.parseMediaType("application/octet-stream")).body(new FileSystemResource(file));
+//    }
 }
+

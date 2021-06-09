@@ -7,7 +7,7 @@ public class Customer {
 
     private String name;
 
-    private Long contry;
+    private String country;
 
     public Customer() {
     }
@@ -36,11 +36,11 @@ public class Customer {
         this.name = name;
     }
 
-    public Long getContry() {
-        return contry;
+    public String getCountry() {
+        return country;
     }
 
-    public void setContry(Long contry) {
-        this.contry = contry;
+    public void setCountry(String country) {
+        this.country = country;
     }
 }

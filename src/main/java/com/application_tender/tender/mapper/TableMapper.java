@@ -10,29 +10,29 @@ import java.time.ZonedDateTime;
 import java.util.List;
 @Mapper
 public interface TableMapper {
-    final String atributTender = "tender.id,name_tender, bico_tender,gos_zakupki,date_start, date_finish,date_tranding ,number_tender,  full_sum, win_sum, currency, price, rate, sum, c.name as customer, c.inn as inn, type as typetender, w.name as winner, product";
+    final String atributTender = "distinct tender.id,name_tender, bico_tender,gos_zakupki,date_start, date_finish,date_tranding ,number_tender,  full_sum, win_sum, currency, tender.price, rate, sum, c.name as customer, c.inn as inn, type as typetender, w.name as winner, product, dublicate, country.name as country";
 ///////////////////////////////////////////////////////////
 //              Tender SQL
 ///////////////////////////////////////////////////////////
     @Select("Select " + atributTender +
-        " from tender left join customer c on c.id = tender.customer left join typetender t on t.id = tender.typetender left join winner w on w.id = tender.winner where tender.id > 4378")
+        " from tender left join customer c on c.id = tender.customer left join typetender t on t.id = tender.typetender left join winner w on w.id = tender.winner left join country on c.country = country.id where tender.id > 4378")
         List<Tender> findAllTender();
 
     @Select("Select id from tender where number_tender = #{number_tender}")
         Long findTenderByNumber_tender(String number_tender);
 
     @Select("Select " + atributTender +
-            " from tender left join customer c on c.id = tender.customer left join typetender t on t.id = tender.typetender left join winner w on w.id = tender.winner where tender.id = #{id}")
+            " from tender left join customer c on c.id = tender.customer left join typetender t on t.id = tender.typetender left join winner w on w.id = tender.winner left join country on c.country = country.id where tender.id = #{id}")
         Tender findTenderbyId(Long id);
     ////
     @Select("Select " + atributTender  +
-            " from tender left join customer c on c.id = tender.customer left join typetender t on t.id = tender.typetender left join winner w on w.id = tender.winner where date_start > '2021-01-01' and price > 0 and sum = 0")
+            " from tender left join customer c on c.id = tender.customer left join typetender t on t.id = tender.typetender left join winner w on w.id = tender.winner  left join country on c.country = country.idwhere date_start > '2021-01-01' and price > 0 and sum = 0")
         List<Tender> findTender();
     ///
     @Select("Select " + atributTender +
-            " from tender left join customer c on c.id = tender.customer left join typetender t on t.id = tender.typetender left join winner w on w.id = tender.winner" +
-            " where date_start between #{start_period} and #{finish_period} and customer like #{customer} and typetender like #{type} and winner like #{winner} and price between #{strat_price} and #{finish_price} order by date_start")
-        List<Tender> findAllTenderTerms(ZonedDateTime start_period, ZonedDateTime finish_period, String type, String winner, String customer, BigDecimal strat_price, BigDecimal finish_price);
+            " from tender left join customer c on c.id = tender.customer left join typetender t on t.id = tender.typetender left join winner w on w.id = tender.winner left join country on c.country = country.id" +
+            " ${where} order by date_start")
+        List<Tender> findAllTenderTerms(String where);
     // @Select("SELECT * from keysight.tender where year(date_start) = #{year} and quarter(date_start) = #{quarter}")
    //     List<Tender> findForOrders(int year, int quarter);
     @Insert("insert into tender (name_tender, bico_tender,gos_zakupki,date_start, date_finish,date_tranding,number_tender,  full_sum, win_sum, currency, price, rate, sum, customer, typetender, winner) " +
@@ -40,8 +40,12 @@ public interface TableMapper {
         Long insertTender(String name_tender, String bico_tender, String gos_zakupki, ZonedDateTime date_start,ZonedDateTime date_finish,ZonedDateTime date_tranding, String number_tender, BigDecimal full_sum, BigDecimal win_sum, String currency, BigDecimal price, Double rate, BigDecimal sum, Long customer, Long typetender, Long winner);
     @Update("Update tender set product = #{product} where id = #{id}")
         Long UpdateProduct(String product, Long id);
+    @Update("Update tender set  name_tender =#{name_tender} , bico_tender=#{bico_tender},gos_zakupki=#{gos_zakupki},date_start=#{date_start}, date_finish=#{date_finish},date_tranding=#{date_tranding} ,number_tender=#{number_tender},  full_sum=#{full_sum}, win_sum=#{win_sum}, currency=#{currency}, price=#{price}, rate=#{rate}, sum=#{sum}, customer=#{customer}, typetender=#{typetender}, winner=#{winner}, dublicate=#{dublicate} where id = #{id}")
+        void UpdateTender(Long id,String name_tender,String bico_tender, String gos_zakupki, ZonedDateTime date_start,ZonedDateTime date_finish,ZonedDateTime date_tranding ,String number_tender,BigDecimal  full_sum,BigDecimal win_sum,String currency,BigDecimal price,double rate,BigDecimal sum,Long customer,Long typetender,Long winner,Boolean dublicate);
     @Update("Update tender set price = #{price}, sum = #{sum} where id = #{id}")
         Long UpdateSum(BigDecimal price, BigDecimal sum,Long id);
+    @Delete("DELETE FROM tender where id = #{id} limit 1")
+        void DeleteTender(Long id);
     @Update("Update tender set rate =  #{rate}, sum = #{sum} where id = #{id}")
         Long UpdateRate(Double rate, BigDecimal sum, Long id);
     @Update("Update tender set date_start = #{date_start}, date_finish= #{date_finish} where id = #{id}")
@@ -161,18 +165,18 @@ public interface TableMapper {
     @Insert("Insert into  another_product (name) values(#{vendor_code})")
     Long InsertAnotherProduct(String vendor_code);
 ///////////////////////////////////////////////////////////
-//              Contry SQL
+//              country SQL
 ///////////////////////////////////////////////////////////
-    @Select("Select * from contry")
-        List<Contry> findAllContry();
-    @Select("Select * from contry where id = #{id}")
-        List<Contry> findAllContryById(Long id);
-    @Select("Select * from contry where name = #{name}")
-        List<Contry> findAllContryByName(String name);
+    @Select("Select * from country")
+        List<Country> findAllCountry();
+    @Select("Select * from country where id = #{id}")
+        List<Country> findAllCountryById(Long id);
+    @Select("Select * from country where name = #{name}")
+        List<Country> findAllCountryByName(String name);
 ///////////////////////////////////////////////////////////
 //              Customer SQL
 ///////////////////////////////////////////////////////////
-    @Select("Select * from customer")
+    @Select("Select customer.id,inn,customer.name as name,country.name as country  from customer left join country on customer.country = country.id")
         List<Customer> findAllCustomer();
     @Select("Select id from customer where inn = #{inn} limit 1")
         Long findCustomerByInn(String inn);
@@ -182,10 +186,12 @@ public interface TableMapper {
         Long findCustomerByNameandINN(String name, String inn);
     @Select("Select inn from customer where id = #{id} limit 1")
         String findCustomerInnById(Long id);
-    @Insert("INSERT into customer (name,inn, contry) values (#{name},#{inn},#{contry})")
-        Long insertCustomer(String name, String inn, Long contry);
+    @Insert("INSERT into customer (name,inn, country) values (#{name},#{inn},#{country})")
+        void insertCustomer(String inn, String name, Long country);
     @Update("UPDATE customer SET inn = #{inn} WHERE id = #{id}")
-        Long updateCustomerInn(String inn,Long id);
+        void updateCustomerInn(String inn,Long id);
+    @Update("UPDATE customer SET inn = #{inn}, name = #{name}, country = #{country} WHERE id = #{id}")
+    void updateCustomer(Long id, String inn, String name, Long country);
 ///////////////////////////////////////////////////////////
 //              Type_tender SQL
 ///////////////////////////////////////////////////////////
@@ -200,7 +206,10 @@ public interface TableMapper {
 ///////////////////////////////////////////////////////////
     @Select("Select * from winner")
         List<Winner> findAllWinner();
-
+    @Insert("Insert into winner (inn,name,ogrn) values (#{inn},#{name},#{ogrn})")
+        void insertWinner(String name,String inn, String ogrn);
+    @Update("Update winner set inn = #{inn}, name = #{name}, ogrn = #{ogrn} where id =#{id}")
+        void updateWinner(Long id, String name,String inn, String ogrn);
 ///////////////////////////////////////////////////////////
 //              Vendor SQL
 ///////////////////////////////////////////////////////////
@@ -224,17 +233,17 @@ public interface TableMapper {
     @Update("update orders set comment = #{comment}, id_product = #{id_product},product_category = #{product_category},tender = #{tender},number = #{number},price = #{price},win_price = #{win_price} where id = #{id}")
         Long updateOrder(Long id,String comment,Long id_product, Long product_category,Long tender,int number,BigDecimal price,BigDecimal win_price);
     @Delete("Delete from orders where id = #{id}")
-        Long deleteOrder(Long id);
+        void deleteOrder(Long id);
 ///////////////////////////////////////////////////////////
 //              Order-Tenders SQL
 ///////////////////////////////////////////////////////////
     @Select("SELECT count(*) as count FROM keysight.tender WHERE NOT EXISTS (SELECT orders.ID FROM keysight.orders WHERE tender.ID = orders.tender)")
         Long findCountTenderWithoutOrders();
     @Select("SELECT "+ atributTender +
-            " FROM keysight.tender left join customer c on c.id = tender.customer left join typetender t on t.id = tender.typetender left join winner w on w.id = tender.winner WHERE NOT EXISTS (SELECT orders.ID FROM keysight.orders WHERE tender.ID = orders.tender)")
+            " FROM keysight.tender left join customer c on c.id = tender.customer left join typetender t on t.id = tender.typetender left join winner w on w.id = tender.winner left join country on c.country = country.id WHERE NOT EXISTS (SELECT orders.ID FROM keysight.orders WHERE tender.ID = orders.tender)")
     List<Tender> findTenderWithoutOrders();
     @Select("SELECT " + atributTender +
-            "        FROM keysight.tender left join customer c on c.id = tender.customer left join typetender t on t.id = tender.typetender left join winner w on w.id = tender.winner right join orders o on tender.id = o.tender where o.product_category = 7 and o.id_product = 255")
+            "        FROM keysight.tender left join customer c on c.id = tender.customer left join typetender t on t.id = tender.typetender left join winner w on w.id = tender.winner right join orders o on tender.id = o.tender left join country on c.country = country.id where o.product_category = 7 and o.id_product = 255")
     List<Tender> findTendernoDocumentation();
     @Select("SELECT count(*) as count, sum(sum) as sum, #{year} as year, #{quarter} as quarter from (Select distinct tender.id, tender.sum as sum from keysight.tender join keysight.orders on orders.tender = tender.id where year(date_start) = #{year} and quarter(date_start) = #{quarter} and product_category = #{category}) as c")
         ReportQuarter findForOrders(int year, int quarter, Long category);
@@ -243,13 +252,18 @@ public interface TableMapper {
     @Select("SELECT trim(name) from (Select distinct tender.id, orders.comment as name from keysight.tender join keysight.orders on orders.tender = tender.id left join ${category_en} as prod on prod.id = orders.id_product where year(date_start) = #{year} and quarter(date_start) = #{quarter} and product_category = #{category} and prod.vendor = 1) as c")
         List<String> findNoVendorForOrders(int year, int quarter, Long category, String category_en);
     @Select("SELECT " +atributTender +
-            " FROM keysight.tender left join customer c on c.id = tender.customer left join typetender t on t.id = tender.typetender left join winner w on w.id = tender.winner  left join orders o on tender.id = o.tender WHERE o.id_product like #{product} and  o.product_category = #{category} and (date_start between #{dateStart} and #{dateFinish})"
+            " FROM keysight.tender left join customer c on c.id = tender.customer left join typetender t on t.id = tender.typetender left join winner w on w.id = tender.winner  left join orders o on tender.id = o.tender left join country on c.country = country.id WHERE o.id_product like #{product} and  o.product_category = #{category} and (date_start between #{dateStart} and #{dateFinish})"
             )
     List<Tender> TenderOnProduct (Long category, ZonedDateTime dateStart, ZonedDateTime dateFinish, String product);
+    @Select("Select tender from orders where product_category = #{category}")
+        List<Long> findTenderByCategory(Long category);
+    @Select("Select tender from orders where ${where}")
+        List<Long> findTenderByProduct(String where);
 ///////////////////////////////////////////////////////////
 //              Universal SQL
 ///////////////////////////////////////////////////////////
     @Select("Select vendor  from ${category} where id = #{id} limit 1")
         Long findOneUniversalById(Long id, String category);
-
+    @Select("Select id from ${category} where vendor = #{vendor}")
+        List<Long> findProductByVendor(String category, Long vendor);
 }

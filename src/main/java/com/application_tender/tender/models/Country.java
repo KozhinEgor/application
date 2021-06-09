@@ -1,6 +1,6 @@
 package com.application_tender.tender.models;
 
-public class Contry {
+public class Country {
     private Long id;
 
     private String name;
