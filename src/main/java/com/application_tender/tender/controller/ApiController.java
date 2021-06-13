@@ -34,7 +34,7 @@ import java.util.*;
 @RequestMapping(path = "/demo")
 public class ApiController {
     private final DateTimeFormatter format_date= DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm:ss z");
-    private final DateTimeFormatter format_dateFile= DateTimeFormatter.ofPattern("dd-MM-yyyy_HH-mm");
+    private final DateTimeFormatter format_dateFile= DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm:ss");
 
     private  final TableMapper tableMapper;
     @Autowired
@@ -674,14 +674,24 @@ public class ApiController {
         XSSFWorkbook workbook = new XSSFWorkbook();
         CreationHelper createHelper = workbook.getCreationHelper();
         XSSFSheet sheet = workbook.createSheet("Станица");
+        XSSFColor colorborder = new XSSFColor(new java.awt.Color(0, 90, 170));
+
         XSSFCellStyle hlinkstyle = workbook.createCellStyle();
         XSSFFont hlinkfont = workbook.createFont();
         hlinkfont.setUnderline(XSSFFont.U_SINGLE);
         hlinkfont.setColor(new XSSFColor(new java.awt.Color(30,144,255)));
         hlinkstyle.setFont(hlinkfont);
+        hlinkstyle.setWrapText(true);
+        hlinkstyle.setBorderTop(BorderStyle.THIN);
+        hlinkstyle.setBorderColor(XSSFCellBorder.BorderSide.TOP,colorborder);
+        hlinkstyle.setBorderRight(BorderStyle.THIN);
+        hlinkstyle.setBorderColor(XSSFCellBorder.BorderSide.RIGHT,colorborder);
+        hlinkstyle.setBorderBottom(BorderStyle.THIN);
+        hlinkstyle.setBorderColor(XSSFCellBorder.BorderSide.BOTTOM,colorborder);
+        hlinkstyle.setBorderLeft(BorderStyle.THIN);
+        hlinkstyle.setBorderColor(XSSFCellBorder.BorderSide.LEFT,colorborder);
 
         XSSFCellStyle body = workbook.createCellStyle();
-        XSSFColor colorborder = new XSSFColor(new java.awt.Color(0, 90, 170));
         body.setBorderTop(BorderStyle.THIN);
         body.setBorderColor(XSSFCellBorder.BorderSide.TOP,colorborder);
         body.setBorderRight(BorderStyle.THIN);
@@ -690,18 +700,40 @@ public class ApiController {
         body.setBorderColor(XSSFCellBorder.BorderSide.BOTTOM,colorborder);
         body.setBorderLeft(BorderStyle.THIN);
         body.setBorderColor(XSSFCellBorder.BorderSide.LEFT,colorborder);
+        body.setWrapText(true);
+
+        XSSFCellStyle price = workbook.createCellStyle();
+        price.setBorderTop(BorderStyle.THIN);
+        price.setBorderColor(XSSFCellBorder.BorderSide.TOP,colorborder);
+        price.setBorderRight(BorderStyle.THIN);
+        price.setBorderColor(XSSFCellBorder.BorderSide.RIGHT,colorborder);
+        price.setBorderBottom(BorderStyle.THIN);
+        price.setBorderColor(XSSFCellBorder.BorderSide.BOTTOM,colorborder);
+        price.setBorderLeft(BorderStyle.THIN);
+        price.setBorderColor(XSSFCellBorder.BorderSide.LEFT,colorborder);
+        price.setDataFormat(createHelper.createDataFormat().getFormat("#,##0.00"));
 
         XSSFCellStyle header = workbook.createCellStyle();
         header.setFillForegroundColor(new  XSSFColor(new java.awt.Color(0,102,204)));
         header.setFillPattern(FillPatternType.SOLID_FOREGROUND);
-//        header.setFillBackgroundColor();
         XSSFFont headerFont = workbook.createFont();
         headerFont.setColor(new XSSFColor(new java.awt.Color(255,255,255)));
         header.setFont(headerFont);
 
         XSSFCellStyle cellStyle = workbook.createCellStyle();
-        cellStyle.setDataFormat(
-                createHelper.createDataFormat().getFormat(format_dateFile.toString()));
+        XSSFDataFormat dateFormat = (XSSFDataFormat)workbook.createDataFormat();
+        cellStyle.setDataFormat(dateFormat.getFormat("dd.MM.yyyy HH:mm:ss"));
+//       cellStyle.setDataFormat(
+//               createHelper.createDataFormat().getFormat("dd.MM.yyyy HH:mm:ss"));
+       // cellStyle.setWrapText(true);
+        cellStyle.setBorderTop(BorderStyle.THIN);
+        cellStyle.setBorderColor(XSSFCellBorder.BorderSide.TOP,colorborder);
+        cellStyle.setBorderRight(BorderStyle.THIN);
+        cellStyle.setBorderColor(XSSFCellBorder.BorderSide.RIGHT,colorborder);
+        cellStyle.setBorderBottom(BorderStyle.THIN);
+        cellStyle.setBorderColor(XSSFCellBorder.BorderSide.BOTTOM,colorborder);
+        cellStyle.setBorderLeft(BorderStyle.THIN);
+        cellStyle.setBorderColor(XSSFCellBorder.BorderSide.LEFT,colorborder);
         int numberRow = 0;
         XSSFRow row = sheet.createRow(numberRow);
         sheet.setColumnWidth(0,39*256);
@@ -712,8 +744,8 @@ public class ApiController {
         sheet.setColumnWidth(5,13*256);
         sheet.setColumnWidth(6,14*256);
         sheet.setColumnWidth(7,17*256);
-        sheet.setColumnWidth(8,4*256);
-        sheet.setColumnWidth(9,4*256);
+        sheet.setColumnWidth(8,5*256);
+        sheet.setColumnWidth(9,5*256);
         sheet.setColumnWidth(10,20*256);
         sheet.setColumnWidth(11,20*256);
         sheet.setColumnWidth(12,12*256);
@@ -761,6 +793,7 @@ public class ApiController {
         for(Tender tender: tenders){
             numberRow+=1;
             row = sheet.createRow(numberRow);
+            row.setHeight((short) -1);
             row.createCell(0).setCellValue(tender.getCustomer());
             row.getCell(0).setCellStyle(body);
             row.createCell(1).setCellValue(tender.getInn());
@@ -783,22 +816,30 @@ public class ApiController {
             row.createCell(6).setCellValue(tender.getNumber_tender());
             row.getCell(6).setCellStyle(body);
             row.createCell(7).setCellValue(tender.getPrice().doubleValue());
-            row.getCell(7).setCellStyle(body);
+            row.getCell(7).setCellStyle(price);
+            row.getCell(7).setCellType(CellType.NUMERIC);
             row.createCell(8).setCellValue(tender.getCurrency());
             row.getCell(8).setCellStyle(body);
             row.createCell(9).setCellValue(tender.getRate());
             row.getCell(9).setCellStyle(body);
+            row.getCell(9).setCellType(CellType.NUMERIC);
             row.createCell(10).setCellValue(tender.getSum().doubleValue());
-            row.getCell(10).setCellStyle(body);
+            row.getCell(10).setCellStyle(price);
+            row.getCell(10).setCellType(CellType.NUMERIC);
             row.createCell(11).setCellValue(tender.getFull_sum().doubleValue());
-            row.getCell(11).setCellStyle(body);
-            row.createCell(12).setCellValue(tender.getDate_start().format(format_dateFile));
-            row.getCell(12).setCellStyle(body);
-            row.createCell(13).setCellValue(tender.getDate_finish().format(format_dateFile));
+            row.getCell(11).setCellStyle(price);
+            row.getCell(11).setCellType(CellType.NUMERIC);
+            row.createCell(12).setCellStyle(body);
+
+            row.getCell(12).setCellValue(tender.getDate_start().toLocalDateTime().format(format_dateFile));
+
+            row.createCell(13).setCellValue(tender.getDate_finish().toLocalDateTime().format(format_dateFile));
             row.getCell(13).setCellStyle(body);
+
             if(tender.getDate_tranding() != null){
-                row.createCell(14).setCellValue( tender.getDate_tranding().format(format_dateFile));
+                row.createCell(14).setCellValue( tender.getDate_tranding().toLocalDateTime().format(format_dateFile));
                 row.getCell(14).setCellStyle(body);
+
             }
             else{
                 row.createCell(14).setCellValue( "");
@@ -809,7 +850,8 @@ public class ApiController {
             row.createCell(16).setCellValue(tender.getWinner());
             row.getCell(16).setCellStyle(body);
             row.createCell(17).setCellValue(tender.getWin_sum().doubleValue());
-            row.getCell(17).setCellStyle(body);
+            row.getCell(17).setCellStyle(price);
+            row.getCell(17).setCellType(CellType.NUMERIC);
         }
         File file = new File(pathname);
         FileOutputStream fileOutputStream = new FileOutputStream(file);
