@@ -7,7 +7,7 @@ public class Winner {
 
     private String inn;
 
-    private String ogrn;
+
 
     public Winner() {
     }
@@ -36,11 +36,12 @@ public class Winner {
         this.inn = inn;
     }
 
-    public String getOgrn() {
-        return ogrn;
-    }
-
-    public void setOgrn(String ogrn) {
-        this.ogrn = ogrn;
+    @Override
+    public String toString() {
+        return "Winner{" +
+                "id=" + id +
+                ", name='" + name + '\'' +
+                ", inn='" + inn + '\'' +
+                '}';
     }
 }

@@ -4,24 +4,24 @@ package com.application_tender.tender.controller;
 import com.application_tender.tender.mapper.TableMapper;
 import com.application_tender.tender.models.*;
 import com.application_tender.tender.service.FileService;
+import com.application_tender.tender.service.MailSender;
 import com.application_tender.tender.subsidiaryModels.*;
 import org.apache.poi.common.usermodel.HyperlinkType;
-import org.apache.poi.hssf.util.HSSFColor;
 import org.apache.poi.openxml4j.exceptions.InvalidFormatException;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.*;
 import org.apache.poi.xssf.usermodel.extensions.XSSFCellBorder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
-import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.*;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -30,7 +30,8 @@ import java.time.format.DateTimeFormatter;
 import java.time.temporal.IsoFields;
 import java.util.*;
 
-@Controller
+@RestController
+@CrossOrigin(origins = "http://localhost:4200")
 @RequestMapping(path = "/demo")
 public class ApiController {
     private final DateTimeFormatter format_date= DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm:ss z");
@@ -48,7 +49,11 @@ public class ApiController {
         this.tableMapper = tableMapper;
         this.fileService = fileService;
     }
-
+    @GetMapping("/AllUsers")
+    @ResponseBody
+    List<User> allUsers(){
+        return tableMapper.findAllUsers();
+    }
     @GetMapping("/TypeTender")
     @ResponseBody
     List<TypeTender> typeTender(){
@@ -292,7 +297,7 @@ public class ApiController {
 
     @PostMapping("/addOrders")
     @ResponseBody
-    String Tender(@RequestBody List<OrdersDB> json){
+    ResponseEntity<?> Tender(@RequestBody List<OrdersDB> json){
         List<Long> ordersINDB = tableMapper.findAllOrdersIdbyTender(json.get(0).getTender());
         if(json.get(0).getId_product() != null) {
             for (OrdersDB ordersDB : json) {
@@ -403,8 +408,9 @@ public class ApiController {
             }
             tableMapper.UpdateProduct(product.toString(), json.get(0).getTender());
         }
-        return "good";
+        return ResponseEntity.ok("good");
     }
+    
     @GetMapping("/CountTenderWithoutOrders")
     @ResponseBody
     Long findCountTenderWithoutOrders(){
@@ -446,6 +452,7 @@ public class ApiController {
 
         return reportQuarters;
     }
+
     @RequestMapping( path = "/quarterVendor/{category}")
     @ResponseBody public ArrayList<ReportVendorQuarter>getQuartalVendorReport (@PathVariable Long category){
         int year = ZonedDateTime.now().getYear();
@@ -503,6 +510,7 @@ public class ApiController {
 
         return reportVendorQuarters;
     }
+
     @RequestMapping( path = "/quarterNoVendor/{category}")
     @ResponseBody public ArrayList<ReportVendorQuarter>getQuartalNoVendorReport (@PathVariable Long category){
         int year = ZonedDateTime.now().getYear();
@@ -560,6 +568,7 @@ public class ApiController {
 
         return reportVendorQuarters;
     }
+
     @PostMapping("/saveProduct/{category}")
     @ResponseBody
     List<Product> saveProduct(@RequestBody Product product, @PathVariable Long category ){
@@ -616,15 +625,16 @@ public class ApiController {
     }
     @PostMapping("/saveTender")
     @ResponseBody
-    String saveTender(@RequestBody Tender tender){
+    ResponseEntity saveTender(@RequestBody Tender tender){
         tableMapper.UpdateTender(tender.getId(), tender.getName_tender(),tender.getBico_tender(),tender.getGos_zakupki(),tender.getDate_start(),tender.getDate_finish(),tender.getDate_tranding(),tender.getNumber_tender(),tender.getFull_sum(),tender.getWin_sum(),tender.getCurrency(),tender.getPrice(),tender.getRate(),tender.getSum(),Long.valueOf(tender.getCustomer()),Long.valueOf(tender.getTypetender()),Long.valueOf(tender.getWinner()),tender.isDublicate());
-        return "good";
+        return ResponseEntity.ok("good");
     }
     @RequestMapping( path = "/Test")
-    @ResponseBody  Long Test () throws IOException, InvalidFormatException {
+    @ResponseBody
+        ResponseEntity Test () throws IOException, InvalidFormatException {
 
 
-        return tableMapper.findCustomerByInn("5040001426");
+        return ResponseEntity.ok().build();
     }
     @PostMapping("/TenderOnProduct")
     @ResponseBody
@@ -633,14 +643,15 @@ public class ApiController {
     }
     @PostMapping("/insertWinner")
     @ResponseBody
-    String insertWinner(@RequestBody Winner winner){
+    ResponseEntity insertWinner(@RequestBody Winner winner){
+        System.out.println(winner);
         if (winner.getId() == null){
-            tableMapper.insertWinner(winner.getInn(),winner.getName(),winner.getOgrn());
+            tableMapper.insertWinner(winner.getInn(),winner.getName());
         }
         else {
-            tableMapper.updateWinner(winner.getId(), winner.getInn(),winner.getName(),winner.getOgrn());
+            tableMapper.updateWinner(winner.getId(), winner.getInn(),winner.getName());
         }
-        return "good";
+        return ResponseEntity.ok().build();
     }
     @PostMapping("/insertCustomer")
     @ResponseBody
@@ -865,18 +876,6 @@ public class ApiController {
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + file1.getFilename() + "\"")
                 .body(file1);
     }
-//        HttpHeaders headers = new HttpHeaders();
-//        headers.add("Cache-Control", "no-cache, no-store, must-revalidate");
-//        String suffixName = file.getName().substring(file.getName().lastIndexOf("."));// 后缀名
-//        headers.add("Content-Disposition", "attachment; filename=Tender" + ZonedDateTime.now().format(format_dateFile) + suffixName);
-//        headers.add("Pragma", "no-cache");
-//        headers.add("Access-Control-Expose-Headers", "Content-Disposition");
-//        headers.add("Expires", "0");
-//        headers.add("Last-Modified", new Date().toString());
-//        headers.add("ETag", String.valueOf(System.currentTimeMillis()));
-//
-//        return ResponseEntity.ok().headers(headers).contentLength(file.length())
-//                .contentType(MediaType.parseMediaType("application/octet-stream")).body(new FileSystemResource(file));
-//    }
+
 }
 

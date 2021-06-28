@@ -5,6 +5,7 @@ import com.application_tender.tender.subsidiaryModels.Product;
 import com.application_tender.tender.subsidiaryModels.ReportQuarter;
 import org.apache.ibatis.annotations.*;
 
+
 import java.math.BigDecimal;
 import java.time.ZonedDateTime;
 import java.util.List;
@@ -206,10 +207,10 @@ public interface TableMapper {
 ///////////////////////////////////////////////////////////
     @Select("Select * from winner")
         List<Winner> findAllWinner();
-    @Insert("Insert into winner (inn,name,ogrn) values (#{inn},#{name},#{ogrn})")
-        void insertWinner(String name,String inn, String ogrn);
-    @Update("Update winner set inn = #{inn}, name = #{name}, ogrn = #{ogrn} where id =#{id}")
-        void updateWinner(Long id, String name,String inn, String ogrn);
+    @Insert("Insert into winner (inn,name) values (#{inn},#{name})")
+        void insertWinner(String inn,String name);
+    @Update("Update winner set inn = #{inn}, name = #{name} where id =#{id}")
+        void updateWinner(Long id, String inn,String name);
 ///////////////////////////////////////////////////////////
 //              Vendor SQL
 ///////////////////////////////////////////////////////////
@@ -266,4 +267,16 @@ public interface TableMapper {
         Long findOneUniversalById(Long id, String category);
     @Select("Select id from ${category} where vendor = #{vendor}")
         List<Long> findProductByVendor(String category, Long vendor);
+
+///////////////////////////////////////////////////////////
+//              User SQL
+///////////////////////////////////////////////////////////
+    @Select("Select * from usr where username = #{username} limit 1")
+        User findUserByUserName(String username);
+    @Insert("Insert into usr (username, role, activationCode) values (#{username}, #{role}, #{activationCode})")
+        void insertUser(String username, String role, String activationCode);
+    @Update("Update usr set password = #{password}, activationCode='' where id = #{id}")
+        void updatePassword(String password, Long id);
+    @Select("Select username,role,activationCode from usr")
+    List<User> findAllUsers();
 }
