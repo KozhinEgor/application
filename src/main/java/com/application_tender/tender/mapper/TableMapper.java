@@ -40,7 +40,7 @@ public interface TableMapper {
             "values (#{name_tender}, #{bico_tender},#{gos_zakupki},#{date_start}, #{date_finish},#{date_tranding},#{number_tender},  #{full_sum}, #{win_sum}, #{currency}, #{price}, #{rate}, #{sum}, #{customer}, #{typetender}, #{winner}) ")
         Long insertTender(String name_tender, String bico_tender, String gos_zakupki, ZonedDateTime date_start,ZonedDateTime date_finish,ZonedDateTime date_tranding, String number_tender, BigDecimal full_sum, BigDecimal win_sum, String currency, BigDecimal price, Double rate, BigDecimal sum, Long customer, Long typetender, Long winner);
     @Update("Update tender set product = #{product} where id = #{id}")
-        Long UpdateProduct(String product, Long id);
+        Long UpdateProductTender(String product, Long id);
     @Update("Update tender set  name_tender =#{name_tender} , bico_tender=#{bico_tender},gos_zakupki=#{gos_zakupki},date_start=#{date_start}, date_finish=#{date_finish},date_tranding=#{date_tranding} ,number_tender=#{number_tender},  full_sum=#{full_sum}, win_sum=#{win_sum}, currency=#{currency}, price=#{price}, rate=#{rate}, sum=#{sum}, customer=#{customer}, typetender=#{typetender}, winner=#{winner}, dublicate=#{dublicate} where id = #{id}")
         void UpdateTender(Long id,String name_tender,String bico_tender, String gos_zakupki, ZonedDateTime date_start,ZonedDateTime date_finish,ZonedDateTime date_tranding ,String number_tender,BigDecimal  full_sum,BigDecimal win_sum,String currency,BigDecimal price,double rate,BigDecimal sum,Long customer,Long typetender,Long winner,Boolean dublicate);
     @Update("Update tender set price = #{price}, sum = #{sum} where id = #{id}")
@@ -54,12 +54,14 @@ public interface TableMapper {
 ///////////////////////////////////////////////////////////
 //              ProductCategory SQL
 ///////////////////////////////////////////////////////////
-    @Select("Select id,category from product_category")
+    @Select("Select id,category,category_en from product_category")
         List<ProductCategory> findAllProductCategory();
     @Select("Select category from product_category where id = #{id} limit 1")
         String findOneCategoryById(Long id);
     @Select("Select category_en from product_category where id = #{id} limit 1")
         String findOneCategoryENById(Long id);
+    @Insert("Insert into product_category (category,category_en) values (#{category},#{category_en})")
+        void InsertCategory(String category, String category_en);
 ///////////////////////////////////////////////////////////
 //              Spectrum_analyser SQL   spectrum_analyser
 ///////////////////////////////////////////////////////////
@@ -218,6 +220,8 @@ public interface TableMapper {
         List<Vendor> findAllVendor();
     @Select("Select name from vendor where id = #{id}")
         String findOneVendorById(Long id);
+    @Select("Select * from vendor where id in(Select DISTINCT vendor from ${category})")
+        List<Vendor> findAllVendorByCategory(String category);
 ///////////////////////////////////////////////////////////
 //              Order SQL
 ///////////////////////////////////////////////////////////
@@ -230,9 +234,13 @@ public interface TableMapper {
     @Select("Select id,comment,id_product,product_category,tender,number,price,win_price as winprice from orders where tender = #{tender} and product_category = #{product_category}")
         List<OrdersDB> findAllOrdersbyTender(Long tender, Long product_category);
     @Insert("insert into orders (comment, id_product,product_category,tender,number,price,win_price) values (#{comment}, #{id_product},#{product_category},#{tender},#{number},#{price},#{win_price})")
-        Long insertOrder(String comment,Long id_product, Long product_category,Long tender,int number,BigDecimal price,BigDecimal win_price);
+        void insertOrder(String comment,Long id_product, Long product_category,Long tender,int number,BigDecimal price,BigDecimal win_price);
     @Update("update orders set comment = #{comment}, id_product = #{id_product},product_category = #{product_category},tender = #{tender},number = #{number},price = #{price},win_price = #{win_price} where id = #{id}")
-        Long updateOrder(Long id,String comment,Long id_product, Long product_category,Long tender,int number,BigDecimal price,BigDecimal win_price);
+        void updateOrder(Long id,String comment,Long id_product, Long product_category,Long tender,int number,BigDecimal price,BigDecimal win_price);
+    @Update("update orders set id_product = #{id_product},product_category = #{product_category} where id = #{id}")
+        void ChangeProduct(Long id,Long id_product, Long product_category);
+    @Select("Select id from orders where id_product = #{id_product} and product_category = #{product_category}")
+        List<Long> findAllOrdersIdbyProduct(Long id_product, Long product_category);
     @Delete("Delete from orders where id = #{id}")
         void deleteOrder(Long id);
 ///////////////////////////////////////////////////////////
@@ -246,12 +254,12 @@ public interface TableMapper {
     @Select("SELECT " + atributTender +
             "        FROM keysight.tender left join customer c on c.id = tender.customer left join typetender t on t.id = tender.typetender left join winner w on w.id = tender.winner right join orders o on tender.id = o.tender left join country on c.country = country.id where o.product_category = 7 and o.id_product = 255")
     List<Tender> findTendernoDocumentation();
-    @Select("SELECT count(*) as count, sum(sum) as sum, #{year} as year, #{quarter} as quarter from (Select distinct tender.id, tender.sum as sum from keysight.tender join keysight.orders on orders.tender = tender.id where year(date_start) = #{year} and quarter(date_start) = #{quarter} and product_category = #{category}) as c")
-        ReportQuarter findForOrders(int year, int quarter, Long category);
-    @Select("SELECT name from (Select distinct tender.id, vendor.name as name from keysight.tender join keysight.orders on orders.tender = tender.id left join ${category_en} as prod on prod.id = orders.id_product left join vendor on  prod.vendor = vendor.id where year(date_start) = #{year} and quarter(date_start) = #{quarter} and product_category = #{category}) as c")
-        List<String> findVendorForOrders(int year, int quarter, Long category, String category_en);
-    @Select("SELECT trim(name) from (Select distinct tender.id, orders.comment as name from keysight.tender join keysight.orders on orders.tender = tender.id left join ${category_en} as prod on prod.id = orders.id_product where year(date_start) = #{year} and quarter(date_start) = #{quarter} and product_category = #{category} and prod.vendor = 1) as c")
-        List<String> findNoVendorForOrders(int year, int quarter, Long category, String category_en);
+    @Select("SELECT count(*) as count, sum(sum) as sum, #{year} as year, #{NumberQuarter} as quarter from (Select distinct tender.id, tender.sum as sum from keysight.tender join keysight.orders on orders.tender = tender.id where ${dateRange} and product_category = #{category}  ${tenders}) as c")
+        ReportQuarter findForOrders(int year,int NumberQuarter ,String dateRange, Long category, String tenders);
+    @Select("SELECT name from (Select distinct tender.id, vendor.name as name from keysight.tender join keysight.orders on orders.tender = tender.id left join ${category_en} as prod on prod.id = orders.id_product left join vendor on  prod.vendor = vendor.id where ${dateRange} and product_category = #{category} ${tenders}) as c ")
+        List<String> findVendorForOrders( String dateRange, Long category, String category_en, String tenders);
+    @Select("SELECT trim(name) from (Select distinct tender.id, orders.comment as name from keysight.tender join keysight.orders on orders.tender = tender.id left join ${category_en} as prod on prod.id = orders.id_product where ${dateRange} and product_category = #{category} and prod.vendor = 1 ${tenders}) as c")
+        List<String> findNoVendorForOrders(String dateRange, Long category, String category_en, String tenders);
     @Select("SELECT " +atributTender +
             " FROM keysight.tender left join customer c on c.id = tender.customer left join typetender t on t.id = tender.typetender left join winner w on w.id = tender.winner  left join orders o on tender.id = o.tender left join country on c.country = country.id WHERE o.id_product like #{product} and  o.product_category = #{category} and (date_start between #{dateStart} and #{dateFinish})"
             )
@@ -263,7 +271,23 @@ public interface TableMapper {
 ///////////////////////////////////////////////////////////
 //              Universal SQL
 ///////////////////////////////////////////////////////////
-    @Select("Select vendor  from ${category} where id = #{id} limit 1")
+    @Select("Select category_en from product_category where id = #{id}")
+    String findNameCategoryById(Long id);
+    @Select("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = 'keysight' AND TABLE_NAME = #{name_table}")
+    String[] findcolumnName(String name_table);
+    @Select("${select}")
+    List <Product> findListProduct(String select);
+    @Select("${select}")
+    Product findOneProduct(String select);
+    @Insert("${insert} ")
+    void InsertProduct(String insert);
+    @Update("${update} limit 1")
+    void UpdateProduct(String update);
+    @Delete("Delete from ${category} where id = #{id} limit 1")
+    void DeleteProduct(String category,Long id);
+    @Insert("${create}")
+    void CreateTable(String create);
+    @Select("Select vendor from ${category} where id = #{id} limit 1")
         Long findOneUniversalById(Long id, String category);
     @Select("Select id from ${category} where vendor = #{vendor}")
         List<Long> findProductByVendor(String category, Long vendor);

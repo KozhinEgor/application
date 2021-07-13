@@ -1,16 +1,14 @@
 package com.application_tender.tender.controller;
 
 import com.application_tender.tender.mapper.TableMapper;
-import com.application_tender.tender.models.Customer;
-import com.application_tender.tender.models.Tender;
-import com.application_tender.tender.models.TypeTender;
-import com.application_tender.tender.models.Winner;
+import com.application_tender.tender.models.*;
+import com.application_tender.tender.subsidiaryModels.Product;
 import com.application_tender.tender.subsidiaryModels.ProductReceived;
 import com.application_tender.tender.subsidiaryModels.ReceivedJSON;
-import com.sun.istack.NotNull;
 import org.springframework.stereotype.Controller;
 
 import java.time.format.DateTimeFormatter;
+import java.util.Arrays;
 import java.util.List;
 
 @Controller
@@ -23,10 +21,10 @@ public class SearchAtribut {
 
     public Long findCustomer (String inn, String name) {
        Long idCustomer = 0L;
-        System.out.println(inn);
+
         if(inn.length() == 0){
             inn = "0";
-            System.out.println(name);
+
             idCustomer = tableMapper.findCustomerByName(name);
         }
         else {
@@ -54,11 +52,27 @@ public class SearchAtribut {
         return idType;
     }
     public List<Long> searchTenderByProduct(ProductReceived[] products){
+
         String where = "";
         for(ProductReceived product : products){
+
             if(product.getVendor_code() == null && product.getVendor() == null){
                 where = where + (where.equals("")?" product_category ="+product.getCategory().getId():" or product_category ="+product.getCategory().getId());
                 }
+            else if(product.getVendor_code() == null && product.getCategory() == null){
+
+                for(ProductCategory productCategory: tableMapper.findAllProductCategory()){
+
+                    if(Arrays.asList(tableMapper.findcolumnName(productCategory.getCategory_en())).contains("vendor")){
+                        List<Long> id_product = tableMapper.findProductByVendor(productCategory.getCategory_en(),product.getVendor().getId());
+
+                        if(id_product.size() != 0){
+                            where = where + (where.equals("")? " product_category = " +productCategory.getId() + " and id_product in ("+ id_product.toString().substring(1,id_product.toString().length() - 1)+")":
+                                    " or product_category =" + productCategory.getId() + " and id_product in ("+ id_product.toString().substring(1,id_product.toString().length() - 1)+")");
+                        }
+                    }
+                }
+            }
            else if(product.getVendor_code() == null){
                 List<Long> id_product = tableMapper.findProductByVendor(tableMapper.findOneCategoryENById(product.getCategory().getId()),product.getVendor().getId());
                 where = where + (where.equals("")? " product_category = " +product.getCategory().getId() + " and id_product in ("+ id_product.toString().substring(1,id_product.toString().length() - 1)+")":
@@ -71,7 +85,9 @@ public class SearchAtribut {
         }
         return tableMapper.findTenderByProduct(where);
     }
+
     private final DateTimeFormatter format_sql = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss z");
+
     public List<Tender> findTenderByTerms(ReceivedJSON json){
         String where = "where";
         if(json.getDateStart() != null ){
@@ -80,7 +96,7 @@ public class SearchAtribut {
         if(json.getDateFinish() != null){
             where = where +  (where.equals("where")?" date_start <= \"" + json.getDateFinish().format(format_sql)+"\"":" and date_start <= \"" + json.getDateFinish().format(format_sql)+"\"");
         }
-        if( json.getType().length != 0){
+        if(json.getType() != null && json.getType().length != 0){
             String type = "(";
             for(TypeTender t : json.getType()){
                 type = type + t.getId() + ",";
@@ -93,7 +109,7 @@ public class SearchAtribut {
                 where = where +  (where.equals("where")?" typetender in " + type:" and typetender in " + type);
             }
         }
-        if(json.getCustom().length != 0){
+        if(json.getCustom() != null && json.getCustom().length != 0){
             String customer = "(";
             for(Customer c:json.getCustom()){
                 customer = customer + c.getId() + ",";
@@ -107,7 +123,7 @@ public class SearchAtribut {
             }
 
         }
-        if(json.getInnCustomer().length() != 0){
+        if(json.getInnCustomer()!= null && json.getInnCustomer().length() != 0){
             if(json.isCustomExclude()){
                 where = where +  (where.equals("where")?" c.inn not like \""+ json.getInnCustomer() +"\"":" and c.inn not like \""+ json.getInnCustomer() +"\"");
             }
@@ -115,7 +131,7 @@ public class SearchAtribut {
                 where = where +  (where.equals("where")?" c.inn like \""+ json.getInnCustomer() +"\"":" and c.inn like \""+ json.getInnCustomer() +"\"");
             }
         }
-        if(json.getCountry() != null){
+        if(json.getCountry() != null && json.getCountry() != null){
             if(json.isCustomExclude()){
                 where = where +  (where.equals("where")?" c.country <> "+ json.getCountry():" and c.country <> "+ json.getCountry());
             }
@@ -123,7 +139,7 @@ public class SearchAtribut {
                 where = where +  (where.equals("where")?" c.country = "+ json.getCountry():" and c.country = "+ json.getCountry());
             }
         }
-        if(json.getWinner().length != 0 ){
+        if(json.getWinner() != null && json.getWinner().length != 0 ){
             String winner = "(";
             for(Winner w : json.getWinner()){
                 winner = winner + w.getId() + ",";
@@ -146,7 +162,7 @@ public class SearchAtribut {
         if(!json.isDublicate()){
             where = where +  (where.equals("where")?" dublicate = false":" and dublicate = false");
         }
-        if(json.getIds().length != 0){
+        if(json.getIds() != null && json.getIds().length != 0){
             String id = "(";
             for(Long i : json.getIds()){
                 id = id+ i.toString()+",";
@@ -159,7 +175,7 @@ public class SearchAtribut {
                 where = where +  (where.equals("where")?" tender.id in " + id:" and tender.id in " + id);
             }
         }
-        if(json.getBicotender().length != 0){
+        if(json.getBicotender() != null && json.getBicotender().length != 0){
             String number_tender = "(";
             for(Long b : json.getBicotender()){
                 number_tender = number_tender + b.toString() + ",";
@@ -172,9 +188,17 @@ public class SearchAtribut {
                 where = where +  (where.equals("where")?" number_tender in "+ number_tender:" and number_tender in "+ number_tender);
             }
         }
-        if(json.getProduct().length != 0){
+        if(json.getProduct() != null && json.getProduct().length != 0){
             List<Long> id = this.searchTenderByProduct(json.getProduct());
-            where = where +  (where.equals("where")?" tender.id in (" + id.toString().substring(1,id.toString().length()-1)+")":" and tender.id in (" + id.toString().substring(1,id.toString().length()-1)+")");
+            String idString = id.toString().substring(1,id.toString().length()-1);
+
+            if(idString.length() != 0){
+                where = where +  (where.equals("where")?" tender.id in (" + idString+")":" and tender.id in (" + idString+")");
+            }
+            else {
+                where = where + " tender.id = 0";
+            }
+           // where = where +  (where.equals("where")?" tender.id in (" + id.toString().substring(1,id.toString().length()-1)+")":" and tender.id in (" + id.toString().substring(1,id.toString().length()-1)+")");
         }
         if(where.equals("where")){
             return tableMapper.findAllTenderTerms("");
@@ -183,4 +207,76 @@ public class SearchAtribut {
             return tableMapper.findAllTenderTerms(where);
         }
     }
+
+    public String createSelectProductCategory(Long id){
+        String select = "Select";
+        Boolean flag = false;
+        String category = tableMapper.findNameCategoryById(id);
+        String[] columns = tableMapper.findcolumnName(category);
+//        Select pr.id, vendor_code, frequency,vendor as vendor_id, usb, vxi, channel, name as vendor from oscilloscope as pr left join vendor v on pr.vendor = v.id
+        for(String column : columns){
+            if (column.equals("vendor")){
+                select = select + " pr."+column+" as vendor_id,";
+                flag = true;
+            }
+            else{
+                select = select + " pr."+column+",";
+            }
+
+        }
+        if(flag){
+            select= select + " v.name as vendor from "+category+" as pr left join vendor as v on pr.vendor = v.id order by pr.vendor,vendor_code ";
+        }
+        else{
+            select = select.substring(0,select.length()-1);
+            select= select + " from "+category+" as pr order by vendor_code";
+        }
+        return select;
+    }
+
+    public String createSelectProductNoUses(Long id){
+        String select = "Select";
+        boolean flag = false;
+        String category = tableMapper.findNameCategoryById(id);
+        String[] columns = tableMapper.findcolumnName(category);
+//        Select pr.id, vendor_code, frequency,vendor as vendor_id, usb, vxi, channel, name as vendor from oscilloscope as pr left join vendor v on pr.vendor = v.id
+        for(String column : columns){
+            if (column.equals("vendor")){
+                select = select + " pr."+column+" as vendor_id,";
+                flag = true;
+            }
+            else{
+                select = select + " pr."+column+",";
+            }
+
+        }
+        if(flag){
+            select= select + " v.name as vendor from "+category+" as pr left join vendor as v on pr.vendor = v.id " ;
+        }
+        else{
+            select = select.substring(0,select.length()-1);
+            select= select + " from "+category+" as pr order by vendor_code";
+        }
+        select=select + " where pr.id not in (Select distinct id_product  from keysight.orders where product_category = '"+id+"')";
+        if(flag){
+            select = select  +  "order by pr.vendor, vendor_code";
+        }
+        else{
+            select = select + "order by vendor_code";
+        }
+        return select;
+    }
+
+    public Product ProductToOrders(Long id,Long product_id){
+        String select = this.createSelectProductCategory(id);
+        int index = select.indexOf("order by");
+        select = select.substring(0,index-1)+ " where pr.id ='" + String.valueOf(product_id) +"'" + select.substring(index);
+        Product product = tableMapper.findOneProduct(select);
+        if(product.getVendor_code().equals("Без артикуля")){
+            product= null;
+        }
+        return product;
+    }
+
+
 }

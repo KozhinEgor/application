@@ -19,4 +19,13 @@ public class ProductReceived {
     public Vendor getVendor() {
         return vendor;
     }
+
+    @Override
+    public String toString() {
+        return "ProductReceived{" +
+                "vendor_code=" + vendor_code +
+                ", category=" + category +
+                ", vendor=" + vendor +
+                '}';
+    }
 }

@@ -9,8 +9,9 @@ public class Product {
     private Boolean usb;
     private Boolean vxi;
     private Boolean portable;
-
     private Integer channel;
+    private Integer port;
+
     public Product() {
     }
 
@@ -86,19 +87,36 @@ public class Product {
         this.vendor = vendor;
     }
 
+    public Integer getPort() {
+        return port;
+    }
+
+    public void setPort(Integer port) {
+        this.port = port;
+    }
 
     @Override
     public String toString() {
         return "Product{" +
                 "id=" + id +
+                ", vendor='" + vendor + '\'' +
                 ", vendor_code='" + vendor_code + '\'' +
                 ", vendor_id=" + vendor_id +
                 ", frequency=" + frequency +
                 ", usb=" + usb +
                 ", vxi=" + vxi +
                 ", portable=" + portable +
-                ", vendor='" + vendor + '\'' +
                 ", channel=" + channel +
+                ", port=" + port +
                 '}';
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        boolean eq = false;
+        if(obj != null && obj instanceof  Product){
+            eq = this.toString().equals(((Product) obj).toString());
+        }
+        return eq;
     }
 }

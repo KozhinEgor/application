@@ -13,6 +13,7 @@ public class ReceivedJSON {
     private ZonedDateTime dateStart;
     private ZonedDateTime dateFinish;
     private boolean dublicate;
+    private boolean quarter;
     private boolean typeExclude;
     private TypeTender[] type;
     private boolean customExclude;
@@ -40,6 +41,10 @@ public class ReceivedJSON {
 
     public boolean isDublicate() {
         return dublicate;
+    }
+
+    public boolean isQuarter() {
+        return quarter;
     }
 
     public boolean isTypeExclude() {
@@ -104,6 +109,7 @@ public class ReceivedJSON {
                 "dateStart=" + dateStart +
                 ", dateFinish=" + dateFinish +
                 ", dublicate=" + dublicate +
+                ", quarter=" + quarter +
                 ", typeExclude=" + typeExclude +
                 ", type=" + Arrays.toString(type) +
                 ", customExclude=" + customExclude +
@@ -117,7 +123,7 @@ public class ReceivedJSON {
                 ", ids=" + Arrays.toString(ids) +
                 ", bicotender=" + Arrays.toString(bicotender) +
                 ", numberShow=" + numberShow +
-                ", productReceiveds=" + Arrays.toString(product) +
+                ", product=" + Arrays.toString(product) +
                 '}';
     }
 }
