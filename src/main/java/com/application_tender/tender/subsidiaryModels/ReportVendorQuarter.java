@@ -30,4 +30,12 @@ public class ReportVendorQuarter {
     public void setVendor(String vendor) {
         this.vendor = vendor;
     }
+
+    @Override
+    public String toString() {
+        return "ReportVendorQuarter{" +
+                "quarter=" + quarter +
+                ", vendor='" + vendor + '\'' +
+                '}';
+    }
 }

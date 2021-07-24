@@ -5,6 +5,7 @@ import com.application_tender.tender.models.*;
 import com.application_tender.tender.subsidiaryModels.Product;
 import com.application_tender.tender.subsidiaryModels.ProductReceived;
 import com.application_tender.tender.subsidiaryModels.ReceivedJSON;
+import org.apache.poi.xssf.usermodel.XSSFCellStyle;
 import org.springframework.stereotype.Controller;
 
 import java.time.format.DateTimeFormatter;
@@ -51,6 +52,7 @@ public class SearchAtribut {
         }
         return idType;
     }
+
     public List<Long> searchTenderByProduct(ProductReceived[] products){
 
         String where = "";
@@ -111,7 +113,7 @@ public class SearchAtribut {
         }
         if(json.getCustom() != null && json.getCustom().length != 0){
             String customer = "(";
-            for(Customer c:json.getCustom()){
+            for(Company c:json.getCustom()){
                 customer = customer + c.getId() + ",";
             }
             customer = customer.substring(0,customer.length() - 1) + ")";
@@ -141,7 +143,7 @@ public class SearchAtribut {
         }
         if(json.getWinner() != null && json.getWinner().length != 0 ){
             String winner = "(";
-            for(Winner w : json.getWinner()){
+            for(Company w : json.getWinner()){
                 winner = winner + w.getId() + ",";
             }
             winner = winner.substring(0,winner.length() - 1) + ")";
@@ -255,14 +257,14 @@ public class SearchAtribut {
         }
         else{
             select = select.substring(0,select.length()-1);
-            select= select + " from "+category+" as pr order by vendor_code";
+            select= select + " from "+category+" as pr";
         }
         select=select + " where pr.id not in (Select distinct id_product  from keysight.orders where product_category = '"+id+"')";
         if(flag){
             select = select  +  "order by pr.vendor, vendor_code";
         }
         else{
-            select = select + "order by vendor_code";
+            select = select + " order by vendor_code";
         }
         return select;
     }
@@ -277,6 +279,5 @@ public class SearchAtribut {
         }
         return product;
     }
-
 
 }

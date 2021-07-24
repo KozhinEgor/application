@@ -1,8 +1,7 @@
 package com.application_tender.tender.subsidiaryModels;
 
-import com.application_tender.tender.models.Customer;
+import com.application_tender.tender.models.Company;
 import com.application_tender.tender.models.TypeTender;
-import com.application_tender.tender.models.Winner;
 
 import java.math.BigDecimal;
 import java.time.ZonedDateTime;
@@ -17,11 +16,11 @@ public class ReceivedJSON {
     private boolean typeExclude;
     private TypeTender[] type;
     private boolean customExclude;
-    private Customer[] custom;
+    private Company[] custom;
     private String innCustomer;
     private Long country;
     private boolean winnerExclude;
-    private Winner[] winner;
+    private Company[] winner;
     private BigDecimal minSum;
     private BigDecimal maxSum;
     private Long[] ids;
@@ -59,7 +58,7 @@ public class ReceivedJSON {
         return customExclude;
     }
 
-    public Customer[] getCustom() {
+    public Company[] getCustom() {
         return custom;
     }
 
@@ -75,7 +74,7 @@ public class ReceivedJSON {
         return winnerExclude;
     }
 
-    public Winner[] getWinner() {
+    public Company[] getWinner() {
         return winner;
     }
 

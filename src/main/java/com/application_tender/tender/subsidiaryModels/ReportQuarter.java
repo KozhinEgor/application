@@ -71,4 +71,14 @@ public class ReportQuarter {
     public void addSum(BigDecimal sum){
         this.sum = this.sum.add(sum);
     }
+
+    @Override
+    public String toString() {
+        return "ReportQuarter{" +
+                "count=" + count +
+                ", sum=" + sum +
+                ", quarter=" + quarter +
+                ", year=" + year +
+                '}';
+    }
 }

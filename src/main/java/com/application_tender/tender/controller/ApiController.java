@@ -4,6 +4,7 @@ package com.application_tender.tender.controller;
 import com.application_tender.tender.mapper.TableMapper;
 import com.application_tender.tender.models.*;
 import com.application_tender.tender.service.FileService;
+import com.application_tender.tender.service.ReportService;
 import com.application_tender.tender.subsidiaryModels.*;
 import org.apache.poi.common.usermodel.HyperlinkType;
 import org.apache.poi.openxml4j.exceptions.InvalidFormatException;
@@ -20,9 +21,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
+import java.io.*;
 import java.math.BigDecimal;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -38,8 +37,7 @@ public class ApiController {
     private final DateTimeFormatter format_date= DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm:ss z");
     private final DateTimeFormatter format_dateFile= DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm:ss");
 
-    private final ArrayList<Integer[]> quarterEconomic = new ArrayList<>();
-    private ArrayList<Integer[]> quarterYear = new ArrayList<>();
+
     private  final TableMapper tableMapper;
     @Autowired
     private SearchAtribut searchAtribut;
@@ -47,20 +45,16 @@ public class ApiController {
     private GetCurrency getCurrency;
     @Value("${file.pathname}")
     private String pathname;
+    @Value("${file.log}")
+    private String log;
     private final FileService fileService;
-    public ApiController(TableMapper tableMapper, FileService fileService) {
+    private final ReportService reportService;
+
+    public ApiController(TableMapper tableMapper, FileService fileService, ReportService reportService) {
         this.tableMapper = tableMapper;
         this.fileService = fileService;
+        this.reportService = reportService;
 
-        quarterEconomic.add(new Integer[]{11, 12, 1});
-        quarterEconomic.add(new Integer[]{2, 3, 4});
-        quarterEconomic.add(new Integer[]{5, 6, 7});
-        quarterEconomic.add(new Integer[]{8, 9, 10});
-
-        quarterYear.add(new Integer[]{1,2,3});
-        quarterYear.add(new Integer[]{4,5,6});
-        quarterYear.add(new Integer[]{7,8,9});
-        quarterYear.add(new Integer[]{10,11,12});
     }
 
     @GetMapping("/AllUsers")
@@ -77,14 +71,272 @@ public class ApiController {
 
     @GetMapping("/Customer")
     @ResponseBody
-    List<Customer> customer(){
+    List<Company> customer(){
         return tableMapper.findAllCustomer();
+    }
+
+    @GetMapping("/CustomerNoUses")
+    @ResponseBody
+    List<Company> customerNoUses(){
+        return tableMapper.findAllCustomerNoUses();
+    }
+
+    @GetMapping("/DeleteCustomerNoUses")
+    @ResponseBody
+    List<Company> deleteCustomerNoUses(){
+
+        List<Company> companies = tableMapper.findAllCustomerNoUses();
+        for(Company company:companies){
+            tableMapper.deleteCustomer(company.getId());
+        }
+        return tableMapper.findAllCustomerNoUses();
+    }
+
+    @PostMapping("/insertCustomer")
+    @ResponseBody
+    ResponseEntity insertCustomer(@RequestBody Company customer){
+        if(customer.getId() == null){
+            tableMapper.insertCustomer(customer.getInn(),customer.getName(),Long.valueOf(customer.getCountry()) );
+        }
+        else{
+            tableMapper.updateCustomer(customer.getId(),customer.getInn(),customer.getName(),Long.valueOf(customer.getCountry()));
+        }
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/ChangeCustomer")
+    @ResponseBody
+    Map<String,String> changeCustomer(@RequestBody ChangeCompany changeCompany){
+        List<Long> tender = tableMapper.findTenderByCustomer(changeCompany.getCompany());
+        for(Long t: tender){
+            tableMapper.changeCustomer(t,changeCompany.getNewCompany());
+        }
+        HashMap<String,String> a = new HashMap<>();
+        a.put("name","Заменил " + tableMapper.findCustomerNameById(changeCompany.getCompany()) + " на " + tableMapper.findCustomerNameById(changeCompany.getNewCompany()));
+        return a;
+    }
+
+    @GetMapping("/CustomerFile")
+    @ResponseBody
+    ResponseEntity<Resource> customerFile() throws IOException {
+        List<Company> customer = tableMapper.findAllCustomer();
+        List<Company> customerNoUses = tableMapper.findAllCustomerNoUses();
+        XSSFWorkbook workbook = new XSSFWorkbook();
+        CreationHelper createHelper = workbook.getCreationHelper();
+        XSSFSheet sheet = workbook.createSheet("Заказчики");
+        XSSFColor colorborder = new XSSFColor(new java.awt.Color(0, 90, 170));
+
+        XSSFCellStyle body = workbook.createCellStyle();
+        body.setBorderTop(BorderStyle.THIN);
+        body.setBorderColor(XSSFCellBorder.BorderSide.TOP,colorborder);
+        body.setBorderRight(BorderStyle.THIN);
+        body.setBorderColor(XSSFCellBorder.BorderSide.RIGHT,colorborder);
+        body.setBorderBottom(BorderStyle.THIN);
+        body.setBorderColor(XSSFCellBorder.BorderSide.BOTTOM,colorborder);
+        body.setBorderLeft(BorderStyle.THIN);
+        body.setBorderColor(XSSFCellBorder.BorderSide.LEFT,colorborder);
+        body.setWrapText(true);
+
+        XSSFCellStyle header = workbook.createCellStyle();
+        header.setFillForegroundColor(new  XSSFColor(new java.awt.Color(0,102,204)));
+        header.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+        XSSFFont headerFont = workbook.createFont();
+        headerFont.setColor(new XSSFColor(new java.awt.Color(255,255,255)));
+        header.setFont(headerFont);
+        header.setWrapText(true);
+
+        XSSFCellStyle dublicate = workbook.createCellStyle();
+        dublicate.setBorderTop(BorderStyle.THIN);
+        dublicate.setBorderColor(XSSFCellBorder.BorderSide.TOP,colorborder);
+        dublicate.setBorderRight(BorderStyle.THIN);
+        dublicate.setBorderColor(XSSFCellBorder.BorderSide.RIGHT,colorborder);
+        dublicate.setBorderBottom(BorderStyle.THIN);
+        dublicate.setBorderColor(XSSFCellBorder.BorderSide.BOTTOM,colorborder);
+        dublicate.setBorderLeft(BorderStyle.THIN);
+        dublicate.setBorderColor(XSSFCellBorder.BorderSide.LEFT,colorborder);
+        dublicate.setWrapText(true);
+        dublicate.setFillForegroundColor(new XSSFColor(new java.awt.Color(255, 215, 64)));
+        dublicate.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+
+        int numberRow = 0;
+        XSSFRow row = sheet.createRow(numberRow);
+        sheet.setColumnWidth(0,5*256);
+        sheet.setColumnWidth(1,39*256);
+        sheet.setColumnWidth(2,14*256);
+        sheet.setColumnWidth(3,14*256);
+
+        row.createCell(0).setCellValue("Id");
+        row.getCell(0).setCellStyle(header);
+        row.createCell(1).setCellValue("Заказчик");
+        row.getCell(1).setCellStyle(header);
+        row.createCell(2).setCellValue("ИНН/БИН/УНП");
+        row.getCell(2).setCellStyle(header);
+        row.createCell(3).setCellValue("Страна");
+        row.getCell(3).setCellStyle(header);
+
+        numberRow++;
+        for (Company company: customer){
+            row = sheet.createRow(numberRow);
+            row.createCell(0).setCellValue(company.getId());
+            row.getCell(0).setCellStyle(body);
+            row.createCell(1).setCellValue(company.getName());
+            row.getCell(1).setCellStyle(body);
+            row.createCell(2).setCellValue(company.getInn());
+            row.getCell(2).setCellStyle(body);
+            row.createCell(3).setCellValue(company.getCountry());
+            row.getCell(3).setCellStyle(body);
+            if(customerNoUses.contains(company)){
+                row.getCell(0).setCellStyle(dublicate);
+            }
+            numberRow++;
+        }
+
+        File file = new File(pathname);
+        FileOutputStream fileOutputStream = new FileOutputStream(file);
+        workbook.write(fileOutputStream);
+        fileOutputStream.close();
+        Resource file1 = fileService.download("temp.xlsx");
+        Path path = file1.getFile()
+                .toPath();
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_TYPE, Files.probeContentType(path))
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + file1.getFilename() + "\"")
+                .body(file1);
     }
 
     @GetMapping("/Winner")
     @ResponseBody
-    List<Winner> winner(){
+    List<Company> winner(){
         return tableMapper.findAllWinner();
+    }
+
+    @GetMapping("/WinnerNoUses")
+    @ResponseBody
+    List<Company> winnerNoUses(){
+        return tableMapper.findAllWinnerNoUses();
+    }
+
+    @GetMapping("/DeleteWinnerNoUses")
+    @ResponseBody
+    List<Company> deleteWinnerNoUses(){
+        List<Company> companies = tableMapper.findAllWinnerNoUses();
+        for(Company company:companies){
+            tableMapper.deleteWinner(company.getId());
+        }
+        return tableMapper.findAllWinnerNoUses();
+    }
+
+    @PostMapping("/insertWinner")
+    @ResponseBody
+    ResponseEntity insertWinner(@RequestBody Company winner){
+
+        if (winner.getId() == null){
+            tableMapper.insertWinner(winner.getInn(),winner.getName(),Long.valueOf(winner.getCountry()));
+        }
+        else {
+            tableMapper.updateWinner(winner.getId(), winner.getInn(),winner.getName(),Long.valueOf(winner.getCountry()));
+        }
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/ChangeWinner")
+    @ResponseBody
+    Map<String,String> changeWinner(@RequestBody ChangeCompany changeCompany){
+        List<Long> tender = tableMapper.findTenderByWinner(changeCompany.getCompany());
+        for(Long t: tender){
+            tableMapper.changeWinner(t,changeCompany.getNewCompany());
+        }
+        HashMap<String,String> a = new HashMap<>();
+        a.put("name","Заменил " + tableMapper.findWinnerNameById(changeCompany.getCompany()) + " на " + tableMapper.findWinnerNameById(changeCompany.getNewCompany()));
+        return a;
+    }
+
+    @GetMapping("/WinnerFile")
+    @ResponseBody
+    ResponseEntity<Resource> winnerFile() throws IOException {
+        List<Company> winner = tableMapper.findAllWinner();
+        List<Company> winnerNoUses = tableMapper.findAllWinnerNoUses();
+        XSSFWorkbook workbook = new XSSFWorkbook();
+        CreationHelper createHelper = workbook.getCreationHelper();
+        XSSFSheet sheet = workbook.createSheet("Победители");
+        XSSFColor colorborder = new XSSFColor(new java.awt.Color(0, 90, 170));
+
+        XSSFCellStyle body = workbook.createCellStyle();
+        body.setBorderTop(BorderStyle.THIN);
+        body.setBorderColor(XSSFCellBorder.BorderSide.TOP,colorborder);
+        body.setBorderRight(BorderStyle.THIN);
+        body.setBorderColor(XSSFCellBorder.BorderSide.RIGHT,colorborder);
+        body.setBorderBottom(BorderStyle.THIN);
+        body.setBorderColor(XSSFCellBorder.BorderSide.BOTTOM,colorborder);
+        body.setBorderLeft(BorderStyle.THIN);
+        body.setBorderColor(XSSFCellBorder.BorderSide.LEFT,colorborder);
+        body.setWrapText(true);
+
+        XSSFCellStyle header = workbook.createCellStyle();
+        header.setFillForegroundColor(new  XSSFColor(new java.awt.Color(0,102,204)));
+        header.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+        XSSFFont headerFont = workbook.createFont();
+        headerFont.setColor(new XSSFColor(new java.awt.Color(255,255,255)));
+        header.setFont(headerFont);
+        header.setWrapText(true);
+
+        XSSFCellStyle dublicate = workbook.createCellStyle();
+        dublicate.setBorderTop(BorderStyle.THIN);
+        dublicate.setBorderColor(XSSFCellBorder.BorderSide.TOP,colorborder);
+        dublicate.setBorderRight(BorderStyle.THIN);
+        dublicate.setBorderColor(XSSFCellBorder.BorderSide.RIGHT,colorborder);
+        dublicate.setBorderBottom(BorderStyle.THIN);
+        dublicate.setBorderColor(XSSFCellBorder.BorderSide.BOTTOM,colorborder);
+        dublicate.setBorderLeft(BorderStyle.THIN);
+        dublicate.setBorderColor(XSSFCellBorder.BorderSide.LEFT,colorborder);
+        dublicate.setWrapText(true);
+        dublicate.setFillForegroundColor(new XSSFColor(new java.awt.Color(255, 215, 64)));
+        dublicate.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+
+        int numberRow = 0;
+        XSSFRow row = sheet.createRow(numberRow);
+        sheet.setColumnWidth(0,5*256);
+        sheet.setColumnWidth(1,39*256);
+        sheet.setColumnWidth(2,14*256);
+        sheet.setColumnWidth(3,14*256);
+
+        row.createCell(0).setCellValue("Id");
+        row.getCell(0).setCellStyle(header);
+        row.createCell(1).setCellValue("Победитель");
+        row.getCell(1).setCellStyle(header);
+        row.createCell(2).setCellValue("ИНН/БИН/УНП");
+        row.getCell(2).setCellStyle(header);
+        row.createCell(3).setCellValue("Страна");
+        row.getCell(3).setCellStyle(header);
+
+        numberRow++;
+        for (Company company: winner){
+            row = sheet.createRow(numberRow);
+            row.createCell(0).setCellValue(company.getId());
+            row.getCell(0).setCellStyle(body);
+            row.createCell(1).setCellValue(company.getName());
+            row.getCell(1).setCellStyle(body);
+            row.createCell(2).setCellValue(company.getInn());
+            row.getCell(2).setCellStyle(body);
+            row.createCell(3).setCellValue(company.getCountry());
+            row.getCell(3).setCellStyle(body);
+            if(winnerNoUses.contains(company)){
+                row.getCell(0).setCellStyle(dublicate);
+            }
+            numberRow++;
+        }
+
+        File file = new File(pathname);
+        FileOutputStream fileOutputStream = new FileOutputStream(file);
+        workbook.write(fileOutputStream);
+        fileOutputStream.close();
+        Resource file1 = fileService.download("temp.xlsx");
+        Path path = file1.getFile()
+                .toPath();
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_TYPE, Files.probeContentType(path))
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + file1.getFilename() + "\"")
+                .body(file1);
     }
 
     @PostMapping("/Tender")
@@ -339,346 +591,144 @@ public class ApiController {
     @RequestMapping( path = "/quarterTender/{category}")
     @ResponseBody
     public ArrayList<ReportQuarter> getQuartalTenderReport (@PathVariable Long category,@RequestBody ReceivedJSON json){
-        ArrayList<ReportQuarter> reportQuarters = new ArrayList<>();
-        String tenders;
-        int year = ZonedDateTime.now().getYear();
-        int quartal = ZonedDateTime.now().get(IsoFields.QUARTER_OF_YEAR);
-        int y = 2018;
-        int q = 1;
-        if(json == null){
-            tenders = "";
-        }
-        else {
-            List<Tender> tender = searchAtribut.findTenderByTerms(json);
-            if(json.getDateFinish() != null){
-                year = json.getDateFinish().getYear();
-                if (!json.isQuarter()){
-                    quartal = json.getDateFinish().get(IsoFields.QUARTER_OF_YEAR);
-                }
-                else {
-                    for(int index = 1;index<=4;index++){
-                        if(Arrays.asList(quarterEconomic.get(index)).contains(json.getDateFinish().getMonth().getValue())){
-                            quartal = index;
-                            break;
-                        }
-                    }
-                }
-            }
-            if(json.getDateStart() != null){
-                y = json.getDateStart().getYear();
-                if (!json.isQuarter()){
-                    q = json.getDateStart().get(IsoFields.QUARTER_OF_YEAR);
-                }
-                else {
-                    for(int index = 1;index<=4;index++){
-                        if(Arrays.asList(quarterEconomic.get(index-1)).contains(json.getDateStart().getMonth().getValue())){
-                            q = index;
-                            break;
-                        }
-                    }
-                }
-            }
-            if(tender.size() != 0){
-                tenders = " and orders.tender in (";
-                for (Tender t:tender){
-                    tenders = tenders + t.getId() + ",";
-                }
-                tenders = tenders.substring(0,tenders.length()-1) + ")";
-            }
-            else{
-                return reportQuarters;
-            }
-        }
 
-
-        String category_en = tableMapper.findOneCategoryENById(category);
-
-        while (y != year || q != quartal+1) {
-            String dataRange;
-            if(json.isQuarter()){
-                if(q == 1){
-                    dataRange = "(" +
-                            "(" +
-                            "year(date_start) ='" + y + "' and month(date_start) in(11,12)" +
-                            " ) " +
-                            "or (" +
-                            "year(date_start) = " + y+1 + " and month(date_start)  = 1))";
-                }
-                else{
-                    dataRange = "(year(date_start) ='" + y + "' and month(date_start) in("+ Arrays.toString(quarterEconomic.get(q-1)).substring(1,Arrays.toString(quarterEconomic.get(q-1)).length()-1) +"))";
-                }
-                reportQuarters.add(0,tableMapper.findForOrders(y, q,dataRange, category, tenders));
-            }
-            else{
-                dataRange = "(year(date_start) ='" + y + "' and month(date_start) in("+ Arrays.toString(quarterYear.get(q-1)).substring(1,Arrays.toString(quarterYear.get(q-1)).length()-1) +"))";
-                reportQuarters.add(0,tableMapper.findForOrders(y, q,dataRange, category, tenders));
-            }
-
-
-            if (q == 4) {
-                q = 1;
-                y = y + 1;
-            } else {
-                q = q + 1;
-            }
-        }
-
-        return reportQuarters;
+        return reportService.getQuartalTenderReport(category,json);
     }
 
     @RequestMapping( path = "/quarterVendor/{category}")
     @ResponseBody
     public ArrayList<ReportVendorQuarter>getQuartalVendorReport (@PathVariable Long category,@RequestBody ReceivedJSON json){
-        ArrayList<ReportVendorQuarter> reportVendorQuarters = new ArrayList<>();
-        String tenders;
-        int year = ZonedDateTime.now().getYear();
-        int quartal = ZonedDateTime.now().get(IsoFields.QUARTER_OF_YEAR);
-        int y = 2018;
-        int q = 1;
-        if(json.getDateFinish() == null && json.getDateStart() == null){
-            tenders = "";
-        }
-        else {
-            List<Tender> tender = searchAtribut.findTenderByTerms(json);
-            if(json.getDateFinish() != null){
-                year = json.getDateFinish().getYear();
-                if (!json.isQuarter()){
-                    quartal = json.getDateFinish().get(IsoFields.QUARTER_OF_YEAR);
-                }
-                else {
-                    for(int index = 1;index<=4;index++){
-                        if(Arrays.asList(quarterEconomic.get(index)).contains(json.getDateFinish().getMonth().getValue())){
-                            quartal = index;
-                            break;
-                        }
-                    }
-                }
-            }
-            if(json.getDateStart() != null){
-                y = json.getDateStart().getYear();
-                if (!json.isQuarter()){
-                    q = json.getDateStart().get(IsoFields.QUARTER_OF_YEAR);
-                }
-                else {
-                    for(int index = 1;index<=4;index++){
-                        if(Arrays.asList(quarterEconomic.get(index-1)).contains(json.getDateStart().getMonth().getValue())){
-                            q = index;
-                            break;
-                        }
-                    }
-                }
-            }
-            if(tender.size() != 0){
-                tenders = " and orders.tender in (";
-                for (Tender t:tender){
-                    tenders = tenders + t.getId() + ",";
-                }
-                tenders = tenders.substring(0,tenders.length()-1) + ")";
-            }
-            else{
-                return  reportVendorQuarters;
-            }
-        }
 
-
-        String category_en = tableMapper.findOneCategoryENById(category);
-
-        while (y != year || q != quartal+1) {
-            Map<String,Integer> vendorCount = new HashMap<String,Integer>();
-            List<String> vendors = new LinkedList<>();
-            String dataRange;
-            if(json.isQuarter()){
-                if(q == 1){
-                    dataRange = "(" +
-                            "(" +
-                            "year(date_start) ='" + y + "' and month(date_start) in(11,12)" +
-                            " ) " +
-                            "or (" +
-                            "year(date_start) = " + y+1 + " and month(date_start)  = 1))";
-                }
-                else{
-                    dataRange = "(year(date_start) ='" + y + "' and month(date_start) in("+ Arrays.toString(quarterEconomic.get(q-1)).substring(1,Arrays.toString(quarterEconomic.get(q-1)).length()-1) +"))";
-                }
-                vendors = tableMapper.findVendorForOrders(dataRange, category, category_en, tenders);
-
-            }
-            else{
-                dataRange = "(year(date_start) ='" + y + "' and month(date_start) in("+ Arrays.toString(quarterYear.get(q-1)).substring(1,Arrays.toString(quarterYear.get(q-1)).length()-1) +"))";
-                vendors = tableMapper.findVendorForOrders(dataRange, category, category_en, tenders);
-            }
-            for (String vendor : vendors) {
-                if(vendor.equals("No vendor")){}
-                else if (!vendorCount.containsKey(vendor)) {
-                    vendorCount.put(vendor, 1);
-                } else {
-                    vendorCount.put(vendor, vendorCount.get(vendor) + 1);
-                }
-            }
-            if(reportVendorQuarters.isEmpty()){
-                for(Map.Entry<String,Integer> entry: vendorCount.entrySet()){
-                    ReportVendorQuarter reportVendorQuarter = new ReportVendorQuarter(entry.getKey());
-                    reportVendorQuarter.getQuarter().put(String.valueOf(y) + ' '+ String.valueOf(q),entry.getValue());
-                    reportVendorQuarters.add(reportVendorQuarter);
-
-                }
-            }
-            else{
-
-                for(Map.Entry<String,Integer> entry: vendorCount.entrySet()){
-                    boolean flag = false;
-                    for(ReportVendorQuarter reportVendorQuarter : reportVendorQuarters){
-                        if(reportVendorQuarter.getVendor().equals(entry.getKey())){
-                            reportVendorQuarter.getQuarter().put(String.valueOf(y) + ' '+ String.valueOf(q),entry.getValue());
-                            flag = true;
-                        }
-
-                    }
-                    if(!flag){
-                        ReportVendorQuarter reportVendorQuarter = new ReportVendorQuarter(entry.getKey());
-                        reportVendorQuarter.getQuarter().put(String.valueOf(y) + ' '+ String.valueOf(q),entry.getValue());
-                        reportVendorQuarters.add(reportVendorQuarter);
-                    }
-                }
-            }
-            if (q == 4) {
-                q = 1;
-                y = y + 1;
-            } else {
-                q = q + 1;
-            }
-        }
-
-        return reportVendorQuarters;
+        return reportService.getQuartalVendorReport(category,json);
     }
 
     @RequestMapping( path = "/quarterNoVendor/{category}")
     @ResponseBody
-    public ArrayList<ReportVendorQuarter>getQuartalNoVendorReport (@PathVariable Long category,@RequestBody ReceivedJSON json){
-        ArrayList<ReportVendorQuarter> reportVendorQuarters = new ArrayList<>();
-        String tenders;
-        int year = ZonedDateTime.now().getYear();
-        int quartal = ZonedDateTime.now().get(IsoFields.QUARTER_OF_YEAR);
-        int y = 2018;
-        int q = 1;
-        if(json == null){
-            tenders = "";
-        }
-        else {
-            List<Tender> tender = searchAtribut.findTenderByTerms(json);
-            if(json.getDateFinish() != null){
-                year = json.getDateFinish().getYear();
-                if (!json.isQuarter()){
+    public ArrayList<ReportVendorQuarter> getQuartalNoVendorReport (@PathVariable Long category,@RequestBody ReceivedJSON json){
 
-                    quartal = json.getDateFinish().get(IsoFields.QUARTER_OF_YEAR);
-                }
-                else {
-                    for(int index = 1;index<=4;index++){
-                        if(Arrays.asList(quarterEconomic.get(index)).contains(json.getDateFinish().getMonth().getValue())){
-                            quartal = index;
-                            break;
-                        }
+        return reportService.getQuartalNoVendorReport(category,json);
+    }
+
+    @PostMapping("/FileReport")
+    @ResponseBody
+    ResponseEntity<Resource> downloadFileReport(@RequestBody ReceivedJSON json) throws IOException {
+        List<ProductCategory> productCategories = tableMapper.findAllProductCategory();
+        XSSFWorkbook workbook = new XSSFWorkbook();
+        CreationHelper createHelper = workbook.getCreationHelper();
+        XSSFColor colorborder = new XSSFColor(new java.awt.Color(0, 90, 170));
+
+        XSSFCellStyle body = workbook.createCellStyle();
+        body.setBorderTop(BorderStyle.THIN);
+        body.setBorderColor(XSSFCellBorder.BorderSide.TOP,colorborder);
+        body.setBorderRight(BorderStyle.THIN);
+        body.setBorderColor(XSSFCellBorder.BorderSide.RIGHT,colorborder);
+        body.setBorderBottom(BorderStyle.THIN);
+        body.setBorderColor(XSSFCellBorder.BorderSide.BOTTOM,colorborder);
+        body.setBorderLeft(BorderStyle.THIN);
+        body.setBorderColor(XSSFCellBorder.BorderSide.LEFT,colorborder);
+        body.setWrapText(true);
+
+        XSSFCellStyle header = workbook.createCellStyle();
+        header.setFillForegroundColor(new  XSSFColor(new java.awt.Color(0,102,204)));
+        header.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+        XSSFFont headerFont = workbook.createFont();
+        headerFont.setColor(new XSSFColor(new java.awt.Color(255,255,255)));
+        header.setFont(headerFont);
+
+        for (ProductCategory productCategory : productCategories) {
+            ArrayList<String> colums = new ArrayList<>();
+            int rowNumber = 1;
+            if (!productCategory.getCategory().equals("Продукты")) {
+                XSSFSheet sheet = workbook.createSheet(productCategory.getCategory().replace("/", " или "));
+                XSSFRow row = sheet.createRow(rowNumber);
+                row.createCell(1).setCellValue("Год");
+                row.getCell(1).setCellStyle(header);
+                row.createCell(2).setCellValue("Квартал");
+                row.getCell(2).setCellStyle(header);
+                row.createCell(3).setCellValue("Количество");
+                row.getCell(3).setCellStyle(header);
+                row.createCell(4).setCellValue("Сумма");
+                row.getCell(4).setCellStyle(header);
+                rowNumber++;
+                ArrayList<ReportQuarter> reportQuarters = this.reportService.getQuartalTenderReport(productCategory.getId(), json);
+                if (reportQuarters.size() != 0) {
+                    for(ReportQuarter reportQuarter : reportQuarters){
+                        row = sheet.createRow(rowNumber);
+                        row.createCell(1).setCellValue((json.isQuarter()?"FY":"") +reportQuarter.getYear());
+                        row.getCell(1).setCellStyle(body);
+                        row.createCell(2).setCellValue("Q"+reportQuarter.getQuarter());
+                        row.getCell(2).setCellStyle(body);
+                        row.createCell(3).setCellValue(reportQuarter.getCount());
+                        row.getCell(3).setCellStyle(body);
+                        row.createCell(4).setCellValue(reportQuarter.getSum() != null?reportQuarter.getSum().toString(): "");
+                        row.getCell(4).setCellStyle(body);
+                        colums.add(reportQuarter.getYear() +" "+reportQuarter.getQuarter());
+                        rowNumber++;
                     }
                 }
-            }
-            if(json.getDateStart() != null){
-                y = json.getDateStart().getYear();
-                if (!json.isQuarter()){
-                    q = json.getDateStart().get(IsoFields.QUARTER_OF_YEAR);
-                }
-                else {
-                    for(int index = 1;index<=4;index++){
-                        if(Arrays.asList(quarterEconomic.get(index-1)).contains(json.getDateStart().getMonth().getValue())){
-                            q = index;
-                            break;
-                        }
+                rowNumber = rowNumber + 2;//Чтобы две строки пропустить
+                ArrayList<ReportVendorQuarter> reportVendorQuarters = this.reportService.getQuartalVendorReport(productCategory.getId(),json);
+                if (reportVendorQuarters.size() != 0){
+                    row = sheet.createRow(rowNumber);
+                    row.createCell(1).setCellValue("Название");
+                    row.getCell(1).setCellStyle(header);
+                    for(int cell = 0;cell<colums.size();cell++){
+                        row.createCell(cell+2).setCellValue((json.isQuarter()?"FY":"")  + colums.get(cell).replace(" ","Q"));
+                        row.getCell(cell+2).setCellStyle(header);
                     }
-                }
-            }
-            if(tender.size() != 0){
-                tenders = " and orders.tender in (";
-                for (Tender t:tender){
-                    tenders = tenders + t.getId() + ",";
-                }
-                tenders = tenders.substring(0,tenders.length()-1) + ")";
-            }
-            else{
-                return  reportVendorQuarters;
-            }
-        }
-
-
-
-        String category_en = tableMapper.findOneCategoryENById(category);
-
-        while (y != year || q != quartal+1) {
-
-            Map<String,Integer> vendorCount = new HashMap<String,Integer>();
-            List<String> vendors = new LinkedList<>();
-            String dataRange;
-            if(json.isQuarter()){
-
-
-                if(q == 1){
-                    dataRange = "(" +
-                            "(" +
-                            "year(date_start) ='" + y + "' and month(date_start) in(11,12)" +
-                            " ) " +
-                            "or (" +
-                            "year(date_start) = " + y+1 + " and month(date_start)  = 1))";
-                }
-                else{
-                    dataRange = "(year(date_start) ='" + y + "' and month(date_start) in("+ Arrays.toString(quarterEconomic.get(q-1)).substring(1,Arrays.toString(quarterEconomic.get(q-1)).length()-1) +"))";
-                }
-                 vendors = tableMapper.findNoVendorForOrders(dataRange, category, category_en, tenders);
-
-            }
-            else{
-                dataRange = "(year(date_start) ='" + y + "' and month(date_start) in("+ Arrays.toString(quarterYear.get(q-1)).substring(1,Arrays.toString(quarterYear.get(q-1)).length()-1) +"))";
-                 vendors = tableMapper.findNoVendorForOrders(dataRange, category, category_en, tenders);
-            }
-
-            for (String vendor : vendors) {
-                if (!vendorCount.containsKey(vendor)) {
-                    vendorCount.put(vendor, 1);
-                } else {
-                    vendorCount.put(vendor, vendorCount.get(vendor) + 1);
-                }
-            }
-            if(reportVendorQuarters.isEmpty()){
-                for(Map.Entry<String,Integer> entry: vendorCount.entrySet()){
-                    ReportVendorQuarter reportVendorQuarter = new ReportVendorQuarter(entry.getKey());
-                    reportVendorQuarter.getQuarter().put(String.valueOf(y) + ' '+ String.valueOf(q),entry.getValue());
-                    reportVendorQuarters.add(reportVendorQuarter);
-
-                }
-            }
-            else{
-
-                for(Map.Entry<String,Integer> entry: vendorCount.entrySet()){
-                    boolean flag = false;
+                    rowNumber++;
                     for(ReportVendorQuarter reportVendorQuarter : reportVendorQuarters){
-                        if(reportVendorQuarter.getVendor().equals(entry.getKey())){
-                            reportVendorQuarter.getQuarter().put(String.valueOf(y) + ' '+ String.valueOf(q),entry.getValue());
-                            flag = true;
+                        row = sheet.createRow(rowNumber);
+                        row.createCell(1).setCellValue(reportVendorQuarter.getVendor());
+                        row.getCell(1).setCellStyle(body);
+                        for(int cell = 0;cell<colums.size();cell++){
+                            row.createCell(cell+2).setCellStyle(body);
+                            if(reportVendorQuarter.getQuarter().containsKey(colums.get(cell))){
+                                row.getCell(cell+2).setCellValue(reportVendorQuarter.getQuarter().get(colums.get(cell)));
+                            }
                         }
-
+                        rowNumber++;
                     }
-                    if(!flag){
-                        ReportVendorQuarter reportVendorQuarter = new ReportVendorQuarter(entry.getKey());
-                        reportVendorQuarter.getQuarter().put(String.valueOf(y) + ' '+ String.valueOf(q),entry.getValue());
-                        reportVendorQuarters.add(reportVendorQuarter);
+                }
+                rowNumber = rowNumber + 2;//Чтобы две строки пропустить
+                ArrayList<ReportVendorQuarter> reportNoVendorQuarters = this.reportService.getQuartalNoVendorReport(productCategory.getId(),json);
+                if (reportVendorQuarters.size() != 0){
+                    row = sheet.createRow(rowNumber);
+                    row.createCell(1).setCellValue("Название");
+                    row.getCell(1).setCellStyle(header);
+                    for(int cell = 0;cell<colums.size();cell++){
+                        row.createCell(cell+2).setCellValue((json.isQuarter()?"FY":"") + colums.get(cell).replace(" ","Q"));
+                        row.getCell(cell+2).setCellStyle(header);
+                    }
+                    rowNumber++;
+                    for(ReportVendorQuarter reportNoVendorQuarter : reportNoVendorQuarters){
+                        row = sheet.createRow(rowNumber);
+                        row.createCell(1).setCellValue(reportNoVendorQuarter.getVendor());
+                        row.getCell(1).setCellStyle(body);
+                        for(int cell = 0;cell<colums.size();cell++){
+                            row.createCell(cell+2).setCellStyle(body);
+                            if(reportNoVendorQuarter.getQuarter().containsKey(colums.get(cell))){
+                                row.getCell(cell+2).setCellValue(reportNoVendorQuarter.getQuarter().get(colums.get(cell)));
+                            }
+                        }
+                        rowNumber++;
                     }
                 }
             }
-            if (q == 4) {
-                q = 1;
-                y = y + 1;
-            } else {
-                q = q + 1;
-            }
         }
 
-        return reportVendorQuarters;
+
+            File file = new File(pathname);
+        FileOutputStream fileOutputStream = new FileOutputStream(file);
+        workbook.write(fileOutputStream);
+        fileOutputStream.close();
+        Resource file1 = fileService.download("temp.xlsx");
+        Path path = file1.getFile()
+                .toPath();
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_TYPE, Files.probeContentType(path))
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + file1.getFilename() + "\"")
+                .body(file1);
     }
 
     @PostMapping("/saveProduct/{id}")
@@ -833,31 +883,6 @@ public class ApiController {
         return tableMapper.TenderOnProduct(json.getProductCategory(), json.getDateStart(),json.getDateFinish(), json.getProduct());
     }
 
-    @PostMapping("/insertWinner")
-    @ResponseBody
-    ResponseEntity insertWinner(@RequestBody Winner winner){
-
-        if (winner.getId() == null){
-            tableMapper.insertWinner(winner.getInn(),winner.getName());
-        }
-        else {
-            tableMapper.updateWinner(winner.getId(), winner.getInn(),winner.getName());
-        }
-        return ResponseEntity.ok().build();
-    }
-
-    @PostMapping("/insertCustomer")
-    @ResponseBody
-    ResponseEntity insertCustomer(@RequestBody Customer customer){
-        if(customer.getId() == null){
-            tableMapper.insertCustomer(customer.getInn(),customer.getName(),Long.valueOf(customer.getCountry()) );
-        }
-        else{
-            tableMapper.updateCustomer(customer.getId(),customer.getInn(),customer.getName(),Long.valueOf(customer.getCountry()));
-        }
-        return ResponseEntity.ok().build();
-    }
-
     @GetMapping("/Country")
     @ResponseBody
     List<Country> Country(){
@@ -866,10 +891,11 @@ public class ApiController {
 
     @GetMapping("/DeleteTender/{tender}")
     @ResponseBody
-    String DeleteTender(@PathVariable Long tender){
-
+    Map<String,String> DeleteTender(@PathVariable Long tender){
         tableMapper.DeleteTender(tender);
-        return "good";
+        HashMap<String,String> a = new HashMap<>();
+        a.put("name", "good");
+        return a;
     }
 
 
@@ -908,6 +934,13 @@ public class ApiController {
         body.setBorderColor(XSSFCellBorder.BorderSide.LEFT,colorborder);
         body.setWrapText(true);
 
+        XSSFCellStyle header = workbook.createCellStyle();
+        header.setFillForegroundColor(new  XSSFColor(new java.awt.Color(0,102,204)));
+        header.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+        XSSFFont headerFont = workbook.createFont();
+        headerFont.setColor(new XSSFColor(new java.awt.Color(255,255,255)));
+        header.setFont(headerFont);
+
         XSSFCellStyle price = workbook.createCellStyle();
         price.setBorderTop(BorderStyle.THIN);
         price.setBorderColor(XSSFCellBorder.BorderSide.TOP,colorborder);
@@ -919,12 +952,7 @@ public class ApiController {
         price.setBorderColor(XSSFCellBorder.BorderSide.LEFT,colorborder);
         price.setDataFormat(createHelper.createDataFormat().getFormat("#,##0.00"));
 
-        XSSFCellStyle header = workbook.createCellStyle();
-        header.setFillForegroundColor(new  XSSFColor(new java.awt.Color(0,102,204)));
-        header.setFillPattern(FillPatternType.SOLID_FOREGROUND);
-        XSSFFont headerFont = workbook.createFont();
-        headerFont.setColor(new XSSFColor(new java.awt.Color(255,255,255)));
-        header.setFont(headerFont);
+
 
         XSSFCellStyle cellStyle = workbook.createCellStyle();
         XSSFDataFormat dateFormat = (XSSFDataFormat)workbook.createDataFormat();
@@ -1292,7 +1320,7 @@ public class ApiController {
             create = create + "`portable` TINYINT NOT NULL DEFAULT b'0',";
         }
         if(table.isVendor()){
-            create = create + "`vendor` BIGINT NOT NULL DEFAULT 1,INDEX `vendor_idx` (`vendor` ASC) VISIBLE, CONSTRAINT `vendor_"+table.getName_en()+"` FOREIGN KEY (`vendor`) REFERENCES `keysight`.`vendor` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION,";
+            create = create + "`vendor` BIGINT NOT NULL DEFAULT 1,INDEX `vendor_idx` (`vendor` ASC), CONSTRAINT `vendor_"+table.getName_en()+"` FOREIGN KEY (`vendor`) REFERENCES `keysight`.`vendor` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION,";
         }
         create = create + " PRIMARY KEY (`id`));";
         tableMapper.CreateTable(create);
@@ -1370,21 +1398,51 @@ public class ApiController {
     @PostMapping("/ChangeCategory")
     @ResponseBody
     Map<String,String> ChangeCategory(@RequestBody ChangeCategory changeCategory){
-        if(changeCategory.getNewVendor_code() == null){
-
+        List<Long> firstProduct = tableMapper.findAllOrdersIdbyProduct(changeCategory.getVendor_code(),changeCategory.getCategory());
+        for(Long id: firstProduct){
+            tableMapper.ChangeProduct(id,changeCategory.getNewVendor_code(),changeCategory.getNewCategory());
         }
+
         HashMap<String,String> a = new HashMap<>();
-        a.put("name","good");
+        a.put("name","Заменил");
         return a;
     }
 
-    @RequestMapping( path = "/Test")
+    @PostMapping( path = "/Test")
     @ResponseBody
-    Map<String,String> Test () throws  JSONException {
-
+    Map<String,String> Test (@RequestBody ReceivedJSON json) throws  JSONException {
+        List<ProductCategory> productCategories = tableMapper.findAllProductCategory();
+        for (ProductCategory productCategory : productCategories){
+            if (!productCategory.getCategory().equals("Продукты")){
+                ArrayList<ReportQuarter> reportVendorQuarter = this.reportService.getQuartalTenderReport(productCategory.getId(),json);
+                if(reportVendorQuarter.size() != 0){
+                    System.out.println(reportVendorQuarter.get(0).toString());
+                }
+            }
+        }
         HashMap<String,String> a = new HashMap<>();
-        System.out.println(Arrays.toString(quarterEconomic.get(0)));
-        a.put("name", Arrays.toString(quarterEconomic.get(0)));
+
+        a.put("name", "good");
+        return a;
+    }
+    @GetMapping(path = "/Log")
+    @ResponseBody
+    Map<String,String> Log (){
+        HashMap<String,String> a = new HashMap<>();
+        String answear = "";
+        try(FileInputStream fin=new FileInputStream(log))
+        {
+            int i=-1;
+            while((i=fin.read())!=-1){
+                answear = answear + (char)i;
+
+            }
+        }
+        catch(IOException ex){
+
+            System.out.println(ex.getMessage());
+        }
+        a.put("name", answear);
         return a;
     }
 }

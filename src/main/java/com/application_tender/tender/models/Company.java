@@ -1,6 +1,8 @@
 package com.application_tender.tender.models;
 
-public class Customer {
+import com.application_tender.tender.subsidiaryModels.Product;
+
+public class Company {
     private Long id;
 
     private String inn;
@@ -9,7 +11,7 @@ public class Customer {
 
     private String country;
 
-    public Customer() {
+    public Company() {
     }
 
     public Long getId() {
@@ -52,5 +54,13 @@ public class Customer {
                 ", name='" + name + '\'' +
                 ", country='" + country + '\'' +
                 '}';
+    }
+    @Override
+    public boolean equals(Object obj) {
+        boolean eq = false;
+        if(obj != null && obj instanceof Company){
+            eq = this.toString().equals(((Company) obj).toString());
+        }
+        return eq;
     }
 }

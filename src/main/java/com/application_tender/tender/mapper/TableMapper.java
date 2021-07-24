@@ -26,9 +26,10 @@ public interface TableMapper {
             " from tender left join customer c on c.id = tender.customer left join typetender t on t.id = tender.typetender left join winner w on w.id = tender.winner left join country on c.country = country.id where tender.id = #{id}")
         Tender findTenderbyId(Long id);
     ////
-    @Select("Select " + atributTender  +
-            " from tender left join customer c on c.id = tender.customer left join typetender t on t.id = tender.typetender left join winner w on w.id = tender.winner  left join country on c.country = country.idwhere date_start > '2021-01-01' and price > 0 and sum = 0")
-        List<Tender> findTender();
+    @Select("Select id from tender where winner = #{winner}")
+        List<Long> findTenderByWinner(Long winner);
+    @Select("Select id from tender where customer = #{customer}")
+        List<Long> findTenderByCustomer(Long customer);
     ///
     @Select("Select " + atributTender +
             " from tender left join customer c on c.id = tender.customer left join typetender t on t.id = tender.typetender left join winner w on w.id = tender.winner left join country on c.country = country.id" +
@@ -180,7 +181,9 @@ public interface TableMapper {
 //              Customer SQL
 ///////////////////////////////////////////////////////////
     @Select("Select customer.id,inn,customer.name as name,country.name as country  from customer left join country on customer.country = country.id")
-        List<Customer> findAllCustomer();
+        List<Company> findAllCustomer();
+    @Select("Select customer.id,inn,customer.name as name,country.name as country  from customer left join country on customer.country = country.id where customer.id not in (Select distinct customer from tender)")
+    List<Company> findAllCustomerNoUses();
     @Select("Select id from customer where inn = #{inn} limit 1")
         Long findCustomerByInn(String inn);
     @Select("Select id from customer where name = #{name} limit 1")
@@ -189,12 +192,18 @@ public interface TableMapper {
         Long findCustomerByNameandINN(String name, String inn);
     @Select("Select inn from customer where id = #{id} limit 1")
         String findCustomerInnById(Long id);
+    @Select("Select name from customer where id = #{id} limit 1")
+    String findCustomerNameById(Long id);
     @Insert("INSERT into customer (name,inn, country) values (#{name},#{inn},#{country})")
         void insertCustomer(String inn, String name, Long country);
     @Update("UPDATE customer SET inn = #{inn} WHERE id = #{id}")
         void updateCustomerInn(String inn,Long id);
     @Update("UPDATE customer SET inn = #{inn}, name = #{name}, country = #{country} WHERE id = #{id}")
     void updateCustomer(Long id, String inn, String name, Long country);
+    @Delete("Delete from customer where id = #{id}")
+    void deleteCustomer(Long id);
+    @Update("Update tender set customer = #{customer} where tender.id = #{tender}")
+    void changeCustomer(Long tender, Long customer);
 ///////////////////////////////////////////////////////////
 //              Type_tender SQL
 ///////////////////////////////////////////////////////////
@@ -207,12 +216,20 @@ public interface TableMapper {
 ///////////////////////////////////////////////////////////
 //              Winner SQL
 ///////////////////////////////////////////////////////////
-    @Select("Select * from winner")
-        List<Winner> findAllWinner();
-    @Insert("Insert into winner (inn,name) values (#{inn},#{name})")
-        void insertWinner(String inn,String name);
-    @Update("Update winner set inn = #{inn}, name = #{name} where id =#{id}")
-        void updateWinner(Long id, String inn,String name);
+    @Select("Select winner.id,winner.inn,winner.name as name,country.name as country from winner left join country on winner.country = country.id")
+        List<Company> findAllWinner();
+    @Select("Select winner.id,winner.inn,winner.name as name,country.name as country from winner left join country on winner.country = country.id where winner.id not in (Select distinct winner from tender)")
+    List<Company> findAllWinnerNoUses();
+    @Select("Select name from winner where id = #{id} limit 1")
+    String findWinnerNameById(Long id);
+    @Insert("Insert into winner (inn,name, country) values (#{inn},#{name},#{country})")
+        void insertWinner(String inn,String name, Long country);
+    @Update("Update winner set inn = #{inn}, name = #{name}, country = #{country} where id =#{id}")
+        void updateWinner(Long id, String inn,String name, Long country);
+    @Delete("Delete from winner where id = #{id}")
+    void deleteWinner(Long id);
+    @Update("Update tender set winner = #{winner} where tender.id = #{tender}")
+    void changeWinner(Long tender, Long winner);
 ///////////////////////////////////////////////////////////
 //              Vendor SQL
 ///////////////////////////////////////////////////////////
@@ -231,6 +248,7 @@ public interface TableMapper {
         List<OrdersDB> findAllOrdersBDbyTender(Long tender);
     @Select("Select id from orders where tender = #{tender}")
         List<Long> findAllOrdersIdbyTender(Long tender);
+
     @Select("Select id,comment,id_product,product_category,tender,number,price,win_price as winprice from orders where tender = #{tender} and product_category = #{product_category}")
         List<OrdersDB> findAllOrdersbyTender(Long tender, Long product_category);
     @Insert("insert into orders (comment, id_product,product_category,tender,number,price,win_price) values (#{comment}, #{id_product},#{product_category},#{tender},#{number},#{price},#{win_price})")
