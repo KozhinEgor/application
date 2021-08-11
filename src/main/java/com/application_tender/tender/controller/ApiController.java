@@ -3,6 +3,7 @@ package com.application_tender.tender.controller;
 
 import com.application_tender.tender.mapper.TableMapper;
 import com.application_tender.tender.models.*;
+import com.application_tender.tender.service.Bicotender;
 import com.application_tender.tender.service.FileService;
 import com.application_tender.tender.service.ReportService;
 import com.application_tender.tender.subsidiaryModels.*;
@@ -12,6 +13,7 @@ import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.*;
 import org.apache.poi.xssf.usermodel.extensions.XSSFCellBorder;
 import org.json.JSONException;
+import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
@@ -34,11 +36,12 @@ import java.util.*;
 @CrossOrigin(origins = "http://localhost:4200")
 @RequestMapping(path = "/demo")
 public class ApiController {
-    private final DateTimeFormatter format_date= DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm:ss z");
-    private final DateTimeFormatter format_dateFile= DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm:ss");
+    private final DateTimeFormatter format_date = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm:ss z");
+    private final DateTimeFormatter format_dateFile = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm:ss");
+    private final DateTimeFormatter format_API_Bico = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss z");
 
 
-    private  final TableMapper tableMapper;
+    private final TableMapper tableMapper;
     @Autowired
     private SearchAtribut searchAtribut;
     @Autowired
@@ -49,44 +52,45 @@ public class ApiController {
     private String log;
     private final FileService fileService;
     private final ReportService reportService;
+    private final Bicotender bicotender;
 
-    public ApiController(TableMapper tableMapper, FileService fileService, ReportService reportService) {
+    public ApiController(TableMapper tableMapper, FileService fileService, ReportService reportService, Bicotender bicotender) {
         this.tableMapper = tableMapper;
         this.fileService = fileService;
         this.reportService = reportService;
-
+        this.bicotender = bicotender;
     }
 
     @GetMapping("/AllUsers")
     @ResponseBody
-    List<User> allUsers(){
+    List<User> allUsers() {
         return tableMapper.findAllUsers();
     }
 
     @GetMapping("/TypeTender")
     @ResponseBody
-    List<TypeTender> typeTender(){
+    List<TypeTender> typeTender() {
         return tableMapper.findAllType();
     }
 
     @GetMapping("/Customer")
     @ResponseBody
-    List<Company> customer(){
+    List<Company> customer() {
         return tableMapper.findAllCustomer();
     }
 
     @GetMapping("/CustomerNoUses")
     @ResponseBody
-    List<Company> customerNoUses(){
+    List<Company> customerNoUses() {
         return tableMapper.findAllCustomerNoUses();
     }
 
     @GetMapping("/DeleteCustomerNoUses")
     @ResponseBody
-    List<Company> deleteCustomerNoUses(){
+    List<Company> deleteCustomerNoUses() {
 
         List<Company> companies = tableMapper.findAllCustomerNoUses();
-        for(Company company:companies){
+        for (Company company : companies) {
             tableMapper.deleteCustomer(company.getId());
         }
         return tableMapper.findAllCustomerNoUses();
@@ -94,25 +98,28 @@ public class ApiController {
 
     @PostMapping("/insertCustomer")
     @ResponseBody
-    ResponseEntity insertCustomer(@RequestBody Company customer){
-        if(customer.getId() == null){
-            tableMapper.insertCustomer(customer.getInn(),customer.getName(),Long.valueOf(customer.getCountry()) );
-        }
-        else{
-            tableMapper.updateCustomer(customer.getId(),customer.getInn(),customer.getName(),Long.valueOf(customer.getCountry()));
+    ResponseEntity insertCustomer(@RequestBody Company customer) {
+        if (customer.getId() == null) {
+            tableMapper.insertCustomer(customer.getInn(), customer.getName(), Long.valueOf(customer.getCountry()));
+        } else {
+            tableMapper.updateCustomer(customer.getId(), customer.getInn(), customer.getName(), Long.valueOf(customer.getCountry()));
         }
         return ResponseEntity.ok().build();
     }
 
     @PostMapping("/ChangeCustomer")
     @ResponseBody
-    Map<String,String> changeCustomer(@RequestBody ChangeCompany changeCompany){
+    Map<String, String> changeCustomer(@RequestBody ChangeCompany changeCompany) {
         List<Long> tender = tableMapper.findTenderByCustomer(changeCompany.getCompany());
-        for(Long t: tender){
-            tableMapper.changeCustomer(t,changeCompany.getNewCompany());
+        for (Long t : tender) {
+            tableMapper.changeCustomerTender(t, changeCompany.getNewCompany());
         }
-        HashMap<String,String> a = new HashMap<>();
-        a.put("name","Заменил " + tableMapper.findCustomerNameById(changeCompany.getCompany()) + " на " + tableMapper.findCustomerNameById(changeCompany.getNewCompany()));
+        tender = tableMapper.findAdjacentTenderByCustomer(changeCompany.getCompany());
+        for (Long t : tender) {
+            tableMapper.changeCustomerAdjacentTender(t, changeCompany.getNewCompany());
+        }
+        HashMap<String, String> a = new HashMap<>();
+        a.put("name", "Заменил " + tableMapper.findCustomerNameById(changeCompany.getCompany()) + " на " + tableMapper.findCustomerNameById(changeCompany.getNewCompany()));
         return a;
     }
 
@@ -128,42 +135,42 @@ public class ApiController {
 
         XSSFCellStyle body = workbook.createCellStyle();
         body.setBorderTop(BorderStyle.THIN);
-        body.setBorderColor(XSSFCellBorder.BorderSide.TOP,colorborder);
+        body.setBorderColor(XSSFCellBorder.BorderSide.TOP, colorborder);
         body.setBorderRight(BorderStyle.THIN);
-        body.setBorderColor(XSSFCellBorder.BorderSide.RIGHT,colorborder);
+        body.setBorderColor(XSSFCellBorder.BorderSide.RIGHT, colorborder);
         body.setBorderBottom(BorderStyle.THIN);
-        body.setBorderColor(XSSFCellBorder.BorderSide.BOTTOM,colorborder);
+        body.setBorderColor(XSSFCellBorder.BorderSide.BOTTOM, colorborder);
         body.setBorderLeft(BorderStyle.THIN);
-        body.setBorderColor(XSSFCellBorder.BorderSide.LEFT,colorborder);
+        body.setBorderColor(XSSFCellBorder.BorderSide.LEFT, colorborder);
         body.setWrapText(true);
 
         XSSFCellStyle header = workbook.createCellStyle();
-        header.setFillForegroundColor(new  XSSFColor(new java.awt.Color(0,102,204)));
+        header.setFillForegroundColor(new XSSFColor(new java.awt.Color(0, 102, 204)));
         header.setFillPattern(FillPatternType.SOLID_FOREGROUND);
         XSSFFont headerFont = workbook.createFont();
-        headerFont.setColor(new XSSFColor(new java.awt.Color(255,255,255)));
+        headerFont.setColor(new XSSFColor(new java.awt.Color(255, 255, 255)));
         header.setFont(headerFont);
         header.setWrapText(true);
 
         XSSFCellStyle dublicate = workbook.createCellStyle();
         dublicate.setBorderTop(BorderStyle.THIN);
-        dublicate.setBorderColor(XSSFCellBorder.BorderSide.TOP,colorborder);
+        dublicate.setBorderColor(XSSFCellBorder.BorderSide.TOP, colorborder);
         dublicate.setBorderRight(BorderStyle.THIN);
-        dublicate.setBorderColor(XSSFCellBorder.BorderSide.RIGHT,colorborder);
+        dublicate.setBorderColor(XSSFCellBorder.BorderSide.RIGHT, colorborder);
         dublicate.setBorderBottom(BorderStyle.THIN);
-        dublicate.setBorderColor(XSSFCellBorder.BorderSide.BOTTOM,colorborder);
+        dublicate.setBorderColor(XSSFCellBorder.BorderSide.BOTTOM, colorborder);
         dublicate.setBorderLeft(BorderStyle.THIN);
-        dublicate.setBorderColor(XSSFCellBorder.BorderSide.LEFT,colorborder);
+        dublicate.setBorderColor(XSSFCellBorder.BorderSide.LEFT, colorborder);
         dublicate.setWrapText(true);
         dublicate.setFillForegroundColor(new XSSFColor(new java.awt.Color(255, 215, 64)));
         dublicate.setFillPattern(FillPatternType.SOLID_FOREGROUND);
 
         int numberRow = 0;
         XSSFRow row = sheet.createRow(numberRow);
-        sheet.setColumnWidth(0,5*256);
-        sheet.setColumnWidth(1,39*256);
-        sheet.setColumnWidth(2,14*256);
-        sheet.setColumnWidth(3,14*256);
+        sheet.setColumnWidth(0, 5 * 256);
+        sheet.setColumnWidth(1, 39 * 256);
+        sheet.setColumnWidth(2, 14 * 256);
+        sheet.setColumnWidth(3, 14 * 256);
 
         row.createCell(0).setCellValue("Id");
         row.getCell(0).setCellStyle(header);
@@ -175,7 +182,7 @@ public class ApiController {
         row.getCell(3).setCellStyle(header);
 
         numberRow++;
-        for (Company company: customer){
+        for (Company company : customer) {
             row = sheet.createRow(numberRow);
             row.createCell(0).setCellValue(company.getId());
             row.getCell(0).setCellStyle(body);
@@ -185,7 +192,7 @@ public class ApiController {
             row.getCell(2).setCellStyle(body);
             row.createCell(3).setCellValue(company.getCountry());
             row.getCell(3).setCellStyle(body);
-            if(customerNoUses.contains(company)){
+            if (customerNoUses.contains(company)) {
                 row.getCell(0).setCellStyle(dublicate);
             }
             numberRow++;
@@ -206,21 +213,21 @@ public class ApiController {
 
     @GetMapping("/Winner")
     @ResponseBody
-    List<Company> winner(){
+    List<Company> winner() {
         return tableMapper.findAllWinner();
     }
 
     @GetMapping("/WinnerNoUses")
     @ResponseBody
-    List<Company> winnerNoUses(){
+    List<Company> winnerNoUses() {
         return tableMapper.findAllWinnerNoUses();
     }
 
     @GetMapping("/DeleteWinnerNoUses")
     @ResponseBody
-    List<Company> deleteWinnerNoUses(){
+    List<Company> deleteWinnerNoUses() {
         List<Company> companies = tableMapper.findAllWinnerNoUses();
-        for(Company company:companies){
+        for (Company company : companies) {
             tableMapper.deleteWinner(company.getId());
         }
         return tableMapper.findAllWinnerNoUses();
@@ -228,26 +235,25 @@ public class ApiController {
 
     @PostMapping("/insertWinner")
     @ResponseBody
-    ResponseEntity insertWinner(@RequestBody Company winner){
+    ResponseEntity insertWinner(@RequestBody Company winner) {
 
-        if (winner.getId() == null){
-            tableMapper.insertWinner(winner.getInn(),winner.getName(),Long.valueOf(winner.getCountry()));
-        }
-        else {
-            tableMapper.updateWinner(winner.getId(), winner.getInn(),winner.getName(),Long.valueOf(winner.getCountry()));
+        if (winner.getId() == null) {
+            tableMapper.insertWinner(winner.getInn(), winner.getName(), Long.valueOf(winner.getCountry()));
+        } else {
+            tableMapper.updateWinner(winner.getId(), winner.getInn(), winner.getName(), Long.valueOf(winner.getCountry()));
         }
         return ResponseEntity.ok().build();
     }
 
     @PostMapping("/ChangeWinner")
     @ResponseBody
-    Map<String,String> changeWinner(@RequestBody ChangeCompany changeCompany){
+    Map<String, String> changeWinner(@RequestBody ChangeCompany changeCompany) {
         List<Long> tender = tableMapper.findTenderByWinner(changeCompany.getCompany());
-        for(Long t: tender){
-            tableMapper.changeWinner(t,changeCompany.getNewCompany());
+        for (Long t : tender) {
+            tableMapper.changeWinner(t, changeCompany.getNewCompany());
         }
-        HashMap<String,String> a = new HashMap<>();
-        a.put("name","Заменил " + tableMapper.findWinnerNameById(changeCompany.getCompany()) + " на " + tableMapper.findWinnerNameById(changeCompany.getNewCompany()));
+        HashMap<String, String> a = new HashMap<>();
+        a.put("name", "Заменил " + tableMapper.findWinnerNameById(changeCompany.getCompany()) + " на " + tableMapper.findWinnerNameById(changeCompany.getNewCompany()));
         return a;
     }
 
@@ -263,42 +269,42 @@ public class ApiController {
 
         XSSFCellStyle body = workbook.createCellStyle();
         body.setBorderTop(BorderStyle.THIN);
-        body.setBorderColor(XSSFCellBorder.BorderSide.TOP,colorborder);
+        body.setBorderColor(XSSFCellBorder.BorderSide.TOP, colorborder);
         body.setBorderRight(BorderStyle.THIN);
-        body.setBorderColor(XSSFCellBorder.BorderSide.RIGHT,colorborder);
+        body.setBorderColor(XSSFCellBorder.BorderSide.RIGHT, colorborder);
         body.setBorderBottom(BorderStyle.THIN);
-        body.setBorderColor(XSSFCellBorder.BorderSide.BOTTOM,colorborder);
+        body.setBorderColor(XSSFCellBorder.BorderSide.BOTTOM, colorborder);
         body.setBorderLeft(BorderStyle.THIN);
-        body.setBorderColor(XSSFCellBorder.BorderSide.LEFT,colorborder);
+        body.setBorderColor(XSSFCellBorder.BorderSide.LEFT, colorborder);
         body.setWrapText(true);
 
         XSSFCellStyle header = workbook.createCellStyle();
-        header.setFillForegroundColor(new  XSSFColor(new java.awt.Color(0,102,204)));
+        header.setFillForegroundColor(new XSSFColor(new java.awt.Color(0, 102, 204)));
         header.setFillPattern(FillPatternType.SOLID_FOREGROUND);
         XSSFFont headerFont = workbook.createFont();
-        headerFont.setColor(new XSSFColor(new java.awt.Color(255,255,255)));
+        headerFont.setColor(new XSSFColor(new java.awt.Color(255, 255, 255)));
         header.setFont(headerFont);
         header.setWrapText(true);
 
         XSSFCellStyle dublicate = workbook.createCellStyle();
         dublicate.setBorderTop(BorderStyle.THIN);
-        dublicate.setBorderColor(XSSFCellBorder.BorderSide.TOP,colorborder);
+        dublicate.setBorderColor(XSSFCellBorder.BorderSide.TOP, colorborder);
         dublicate.setBorderRight(BorderStyle.THIN);
-        dublicate.setBorderColor(XSSFCellBorder.BorderSide.RIGHT,colorborder);
+        dublicate.setBorderColor(XSSFCellBorder.BorderSide.RIGHT, colorborder);
         dublicate.setBorderBottom(BorderStyle.THIN);
-        dublicate.setBorderColor(XSSFCellBorder.BorderSide.BOTTOM,colorborder);
+        dublicate.setBorderColor(XSSFCellBorder.BorderSide.BOTTOM, colorborder);
         dublicate.setBorderLeft(BorderStyle.THIN);
-        dublicate.setBorderColor(XSSFCellBorder.BorderSide.LEFT,colorborder);
+        dublicate.setBorderColor(XSSFCellBorder.BorderSide.LEFT, colorborder);
         dublicate.setWrapText(true);
         dublicate.setFillForegroundColor(new XSSFColor(new java.awt.Color(255, 215, 64)));
         dublicate.setFillPattern(FillPatternType.SOLID_FOREGROUND);
 
         int numberRow = 0;
         XSSFRow row = sheet.createRow(numberRow);
-        sheet.setColumnWidth(0,5*256);
-        sheet.setColumnWidth(1,39*256);
-        sheet.setColumnWidth(2,14*256);
-        sheet.setColumnWidth(3,14*256);
+        sheet.setColumnWidth(0, 5 * 256);
+        sheet.setColumnWidth(1, 39 * 256);
+        sheet.setColumnWidth(2, 14 * 256);
+        sheet.setColumnWidth(3, 14 * 256);
 
         row.createCell(0).setCellValue("Id");
         row.getCell(0).setCellStyle(header);
@@ -310,7 +316,7 @@ public class ApiController {
         row.getCell(3).setCellStyle(header);
 
         numberRow++;
-        for (Company company: winner){
+        for (Company company : winner) {
             row = sheet.createRow(numberRow);
             row.createCell(0).setCellValue(company.getId());
             row.getCell(0).setCellStyle(body);
@@ -320,7 +326,7 @@ public class ApiController {
             row.getCell(2).setCellStyle(body);
             row.createCell(3).setCellValue(company.getCountry());
             row.getCell(3).setCellStyle(body);
-            if(winnerNoUses.contains(company)){
+            if (winnerNoUses.contains(company)) {
                 row.getCell(0).setCellStyle(dublicate);
             }
             numberRow++;
@@ -341,36 +347,41 @@ public class ApiController {
 
     @PostMapping("/Tender")
     @ResponseBody
-    List<Tender> Tender(@RequestBody ReceivedJSON json){
-       return searchAtribut.findTenderByTerms(json);
+    List<Tender> Tender(@RequestBody ReceivedJSON json) {
+        return tableMapper.findAllTenderTerms(searchAtribut.findTenderByTerms(json));
+    }
+
+    @PostMapping("/AdjacentTender")
+    @ResponseBody
+    List<Tender> AdjacentTender(@RequestBody ReceivedJSON json) {
+        return tableMapper.findAllAdjacentTenderTerms(searchAtribut.findTenderByTerms(json));
     }
 
     @GetMapping("/AnotherProduct")
     @ResponseBody
-    List<AnotherProduct> AnotherProduct(){
+    List<AnotherProduct> AnotherProduct() {
         return tableMapper.findAllAnotherProduct();
     }
 
     @GetMapping("/ProductCategory")
     @ResponseBody
-    List<ProductCategory> ProductCategory(){
+    List<ProductCategory> ProductCategory() {
         return tableMapper.findAllProductCategory();
     }
 
     @GetMapping("/VendorCode/{id}")
     @ResponseBody
-    List<Product> Product(@PathVariable Long id){
-        if(id == 0L){
+    List<Product> Product(@PathVariable Long id) {
+        if (id == 0L) {
             return null;
-        }
-        else{
+        } else {
             return tableMapper.findListProduct(searchAtribut.createSelectProductCategory(id));
         }
     }
 
     @GetMapping("/VendorCodeNoUses/{id}")
     @ResponseBody
-    List<Product> ProductNoUses(@PathVariable Long id){
+    List<Product> ProductNoUses(@PathVariable Long id) {
 
         return tableMapper.findListProduct(searchAtribut.createSelectProductNoUses(id));
 
@@ -378,10 +389,10 @@ public class ApiController {
 
     @GetMapping("/DeleteVendorCodeNoUses/{id}")
     @ResponseBody
-    List<Product> DeleteProductNoUses(@PathVariable Long id){
+    List<Product> DeleteProductNoUses(@PathVariable Long id) {
         List<Product> products = tableMapper.findListProduct(searchAtribut.createSelectProductNoUses(id));
-        for(Product product : products){
-            tableMapper.DeleteProduct(tableMapper.findNameCategoryById(id),product.getId());
+        for (Product product : products) {
+            tableMapper.DeleteProduct(tableMapper.findNameCategoryById(id), product.getId());
         }
         return tableMapper.findListProduct(searchAtribut.createSelectProductNoUses(id));
 
@@ -389,43 +400,43 @@ public class ApiController {
 
     @GetMapping("/VendorCodeById/{id}/{id_product}")
     @ResponseBody
-    Product ProductById(@PathVariable Long id,@PathVariable Long id_product){
+    Product ProductById(@PathVariable Long id, @PathVariable Long id_product) {
         String select = searchAtribut.createSelectProductCategory(id);
         int index = select.indexOf("order by");
-        select= select.substring(0,index-1)+ " where pr.id =" + String.valueOf(id_product) + " "+select.substring(index);
+        select = select.substring(0, index - 1) + " where pr.id =" + String.valueOf(id_product) + " " + select.substring(index);
         return tableMapper.findOneProduct(select);
 
     }
 
     @GetMapping("/OrdersByTender/{tender}")
     @ResponseBody
-    OrdersReceived OrdersByTender(@PathVariable Long tender){
+    OrdersReceived OrdersByTender(@PathVariable Long tender) {
         List<OrdersDB> ordersDB = tableMapper.findAllOrdersBDbyTender(tender);
         List<Orders> orders = new LinkedList<>();
-        for (OrdersDB orderDB : ordersDB ){
+        for (OrdersDB orderDB : ordersDB) {
 
-            Product product_id = searchAtribut.ProductToOrders(orderDB.getProduct_category(),orderDB.getId_product());
+            Product product_id = searchAtribut.ProductToOrders(orderDB.getProduct_category(), orderDB.getId_product());
 
             orders.add(new Orders(orderDB.getTender(),
                     tableMapper.findOneCategoryById(orderDB.getProduct_category()),
                     ((product_id == null || product_id.getVendor_id() == null || product_id.getVendor_id().equals(1L)) ? "" :
-                            tableMapper.findOneVendorById(product_id.getVendor_id())  + ' ') + (product_id == null ? "": product_id.getVendor_code() + " "),
-                    product_id == null ?  tableMapper.findOneVendorById(1L) : tableMapper.findOneVendorById(product_id.getVendor_id()),
+                            tableMapper.findOneVendorById(product_id.getVendor_id()) + ' ') + (product_id == null ? "" : product_id.getVendor_code() + " "),
+                    product_id == null ? tableMapper.findOneVendorById(1L) : tableMapper.findOneVendorById(product_id.getVendor_id()),
                     orderDB.getComment(),
                     orderDB.getNumber(),
                     orderDB.getPrice(),
                     orderDB.getWinprice()));
         }
-        return new OrdersReceived(orders,ordersDB);
+        return new OrdersReceived(orders, ordersDB);
     }
 
     @GetMapping("/OrdersBDByTender/{tender}")
     @ResponseBody
-    List<OrdersDB> OrdersBDByTender(@PathVariable Long tender){
+    List<OrdersDB> OrdersBDByTender(@PathVariable Long tender) {
         return tableMapper.findAllOrdersBDbyTender(tender);
     }
 
-    @RequestMapping(value = "/addTender", method = RequestMethod.POST, consumes = { "multipart/form-data" })
+    @RequestMapping(value = "/addTender", method = RequestMethod.POST, consumes = {"multipart/form-data"})
     @ResponseBody
     List<Tender> addTender(MultipartFile excel) throws IOException, InvalidFormatException {
 
@@ -438,36 +449,35 @@ public class ApiController {
         XSSFSheet sheet = workbook.getSheetAt(0);
 
         ZonedDateTime dateCurrency = ZonedDateTime.parse(sheet.getRow(1).getCell(8).getStringCellValue() + " 00:00:00 Z", format_date).plusDays(1);
-        Map<String,Double> currency = getCurrency.currency(dateCurrency.format(formatCurrency));
+        Map<String, Double> currency = getCurrency.currency(dateCurrency.format(formatCurrency));
         int count = 1;
         while (sheet.getRow(count).getCell(0) != null) {
             XSSFRow row = sheet.getRow(count);
             String numberTender = new DataFormatter().formatCellValue(row.getCell(7));
-            if(numberTender.equals("")){
+            if (numberTender.equals("")) {
                 break;
             }
             Long id;
-            if (tableMapper.findTenderByNumber_tender(numberTender) != null){
+            if (tableMapper.findTenderByNumber_tender(numberTender) != null) {
 
                 id = tableMapper.findTenderByNumber_tender(numberTender);
 
-            }
-            else{
+            } else {
 
                 String INNCustomer = new DataFormatter().formatCellValue(row.getCell(3)).trim();
 
                 ZonedDateTime dateStart = ZonedDateTime.parse(row.getCell(8).getStringCellValue() + " 00:00:00 Z", format_date).plusDays(1);
                 currency = getCurrency.currency(dateStart.format(formatCurrency));
-                double rate = row.getCell(5).getStringCellValue().equals("RUB")  ? 1 : currency.get(row.getCell(5).getStringCellValue());
-                id = tableMapper.insertTender(row.getCell(0).getStringCellValue(),
+                double rate = row.getCell(5).getStringCellValue().equals("RUB") ? 1 : currency.get(row.getCell(5).getStringCellValue());
+                tableMapper.insertTender(row.getCell(0).getStringCellValue(),
                         "https://www.bicotender.ru/tc/tender/show/tender_id/" + numberTender,
                         row.getCell(1).getStringCellValue(),
                         ZonedDateTime.parse(row.getCell(8).getStringCellValue() + " 00:00:00 Z", format_date),
-                        row.getCell(9).getStringCellValue().length() == 10 ?  ZonedDateTime.parse(row.getCell(9).getStringCellValue() + " 00:00:00 Z", format_date) :
+                        row.getCell(9).getStringCellValue().length() == 10 ? ZonedDateTime.parse(row.getCell(9).getStringCellValue() + " 00:00:00 Z", format_date) :
                                 ZonedDateTime.parse(row.getCell(9).getStringCellValue() + " Z", format_date),
                         row.getCell(10).getCellType() != CellType.BLANK ?
-                                    row.getCell(9).getStringCellValue().length() == 10 ?  ZonedDateTime.parse(row.getCell(9).getStringCellValue() + " 00:00:00 Z", format_date) :
-                                    ZonedDateTime.parse(row.getCell(9).getStringCellValue() + " Z", format_date):
+                                row.getCell(9).getStringCellValue().length() == 10 ? ZonedDateTime.parse(row.getCell(9).getStringCellValue() + " 00:00:00 Z", format_date) :
+                                        ZonedDateTime.parse(row.getCell(9).getStringCellValue() + " Z", format_date) :
                                 null,
                         numberTender,
                         new BigDecimal(row.getCell(4).getNumericCellValue()).setScale(2, BigDecimal.ROUND_CEILING),
@@ -479,7 +489,7 @@ public class ApiController {
                         searchAtribut.findCustomer(INNCustomer, sheet.getRow(count).getCell(2).getStringCellValue()),
                         searchAtribut.findTypetender(row.getCell(6).getStringCellValue()),
                         1L
-                        );
+                );
                 id = tableMapper.findTenderByNumber_tender(numberTender);
 
             }
@@ -492,22 +502,107 @@ public class ApiController {
         return tenders;
     }
 
+    @PostMapping("/loadTender")
+    @ResponseBody
+    List<Tender> loadTender(@RequestBody Long[] number) throws JSONException {
+        LinkedList<Tender> tenders = new LinkedList<>();
+
+        for (Long num : number) {
+            Long id;
+            DateTimeFormatter formatCurrency = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+            if (tableMapper.findTenderByNumber_tender(num.toString()) != null) {
+
+                id = tableMapper.findTenderByNumber_tender(num.toString());
+
+            } else {
+                JSONObject tender = bicotender.loadTender(num);
+                ZonedDateTime dateStart = ZonedDateTime.parse(tender.get("loadTime").toString() + " Z", format_API_Bico).plusDays(1);
+                Map<String, Double> currency = new HashMap<>();
+                currency = getCurrency.currency(dateStart.format(formatCurrency));
+                double rate = tender.get("valuta").toString().equals("RUB") ? 1 : currency.get(tender.get("valuta").toString());
+                JSONObject company = new JSONObject(tender.get("company").toString());
+                String cost = tender.get("cost").toString().equals("null") ? "0" : tender.get("cost").toString();
+                tableMapper.insertTender(tender.get("name").toString(),
+                        "https://www.bicotender.ru/tc/tender/show/tender_id/" + tender.get("tender_id"),
+                        tender.get("sourceUrl").toString(),
+                        ZonedDateTime.parse(tender.get("loadTime").toString() + " Z", format_API_Bico),
+                        ZonedDateTime.parse(tender.get("finishDate").toString() + " Z", format_API_Bico),
+                        tender.get("openingDate").toString().equals("null") ? null : ZonedDateTime.parse(tender.get("openingDate").toString() + " Z", format_API_Bico),
+                        tender.get("tender_id").toString(),
+                        new BigDecimal(cost).setScale(2, BigDecimal.ROUND_CEILING),
+                        new BigDecimal(0),
+                        tender.get("valuta").toString(),
+                        new BigDecimal(cost).setScale(2, BigDecimal.ROUND_CEILING),
+                        rate,
+                        new BigDecimal(cost).setScale(2, BigDecimal.ROUND_CEILING).multiply(new BigDecimal(rate)),
+                        searchAtribut.findCustomer(company.get("inn").toString(), company.get("name").toString()),
+                        searchAtribut.findTypetender(tender.get("typeName").toString()),
+                        1L
+                );
+                id = tableMapper.findTenderByNumber_tender(tender.get("tender_id").toString());
+            }
+            tenders.add(tableMapper.findTenderbyId(id));
+        }
+        return tenders;
+    }
+
+    @PostMapping("/loadTenderAdjacent")
+    @ResponseBody
+    List<Tender> loadTenderAdjacentr(@RequestBody Long[] number) throws JSONException {
+        LinkedList<Tender> tenders = new LinkedList<>();
+
+        for (Long num : number) {
+            Long id;
+            DateTimeFormatter formatCurrency = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+            if (tableMapper.findAdjacentTenderByNumber_tender(num.toString()) != null) {
+
+                id = tableMapper.findAdjacentTenderByNumber_tender(num.toString());
+
+            } else {
+                JSONObject tender = bicotender.loadTender(num);
+                ZonedDateTime dateStart = ZonedDateTime.parse(tender.get("loadTime").toString() + " Z", format_API_Bico).plusDays(1);
+                Map<String, Double> currency = new HashMap<>();
+                currency = getCurrency.currency(dateStart.format(formatCurrency));
+                double rate = tender.get("valuta").toString().equals("RUB") ? 1 : currency.get(tender.get("valuta").toString());
+                JSONObject company = new JSONObject(tender.get("company").toString());
+                String cost = tender.get("cost").toString().equals("null") ? "0" : tender.get("cost").toString();
+                tableMapper.insertAdjacentTender(tender.get("name").toString(),
+                        "https://www.bicotender.ru/tc/tender/show/tender_id/" + tender.get("tender_id"),
+                        tender.get("sourceUrl").toString(),
+                        ZonedDateTime.parse(tender.get("loadTime").toString() + " Z", format_API_Bico),
+                        ZonedDateTime.parse(tender.get("finishDate").toString() + " Z", format_API_Bico),
+                        tender.get("openingDate").toString().equals("null") ? null : ZonedDateTime.parse(tender.get("openingDate").toString() + " Z", format_API_Bico),
+                        tender.get("tender_id").toString(),
+                        new BigDecimal(cost).setScale(2, BigDecimal.ROUND_CEILING),
+
+                        tender.get("valuta").toString(),
+                        new BigDecimal(cost).setScale(2, BigDecimal.ROUND_CEILING),
+                        rate,
+                        new BigDecimal(cost).setScale(2, BigDecimal.ROUND_CEILING).multiply(new BigDecimal(rate)),
+                        searchAtribut.findCustomer(company.get("inn").toString(), company.get("name").toString()),
+                        searchAtribut.findTypetender(tender.get("typeName").toString())
+                );
+                id = tableMapper.findAdjacentTenderByNumber_tender(tender.get("tender_id").toString());
+            }
+            tenders.add(tableMapper.findAdjacentTenderbyId(id));
+        }
+        return tenders;
+    }
     @GetMapping("/Vendor/{category}")
     @ResponseBody
-    List<Vendor> Vendor(@PathVariable Long category){
-        if(category == 0L){
+    List<Vendor> Vendor(@PathVariable Long category) {
+        if (category == 0L) {
             return tableMapper.findAllVendor();
-        }
-        else{
+        } else {
             return tableMapper.findAllVendorByCategory(tableMapper.findNameCategoryById(category));
         }
     }
 
     @PostMapping("/addOrders")
     @ResponseBody
-    HashMap<String,String> Tender(@RequestBody List<OrdersDB> json){
+    HashMap<String, String> Tender(@RequestBody List<OrdersDB> json) {
         List<Long> ordersINDB = tableMapper.findAllOrdersIdbyTender(json.get(0).getTender());
-        if(json.get(0).getId_product() != null) {
+        if (json.get(0).getId_product() != null) {
             for (OrdersDB ordersDB : json) {
                 if (ordersINDB.contains(ordersDB.getId())) {
                     ordersINDB.remove(ordersDB.getId());
@@ -537,76 +632,53 @@ public class ApiController {
                 }
             }
         }
-        for(Long id : ordersINDB){
+        for (Long id : ordersINDB) {
             tableMapper.deleteOrder(id);
 
         }
-        List<OrdersDB> ordersDB = tableMapper.findAllOrdersBDbyTender(json.get(0).getTender());
-        StringBuilder product = new StringBuilder();
-        if(ordersDB != null) {
-            List<Orders> orders = new LinkedList<Orders>();
-
-            for (OrdersDB orderDB : ordersDB) {
-
-                Product product_id = searchAtribut.ProductToOrders(orderDB.getProduct_category(),orderDB.getId_product());
-
-                orderDB.setVendor(product_id == null ? Long.valueOf(1) : product_id.getVendor_id());
-                orders.add(new Orders(orderDB.getTender(),
-                        (orderDB.getProduct_category() != 7 ? tableMapper.findOneCategoryById(orderDB.getProduct_category()) : ""),
-                         product_id == null ? "" : product_id.getVendor_code() ,
-                        product_id == null || product_id.getVendor_id() == null || product_id.getVendor_id() == 1? "" : tableMapper.findOneVendorById(product_id.getVendor_id())  + ' ',
-                        orderDB.getComment(),
-                        orderDB.getNumber(),
-                        orderDB.getPrice(),
-                        orderDB.getWinprice()));
-            }
-            for(Orders order : orders){
-                product.append(order.ToDB()).append("; ");
-            }
-            tableMapper.UpdateProductTender(product.toString(), json.get(0).getTender());
-        }
-        HashMap<String,String> answear = new HashMap<>();
-        answear.put("name",product.toString());
+        String product = searchAtribut.UpdateProductTender(json.get(0).getTender());
+        HashMap<String, String> answear = new HashMap<>();
+        answear.put("name", product);
         return answear;
     }
-    
+
     @GetMapping("/CountTenderWithoutOrders")
     @ResponseBody
-    Long findCountTenderWithoutOrders(){
+    Long findCountTenderWithoutOrders() {
         return tableMapper.findCountTenderWithoutOrders();
     }
 
     @GetMapping("/TenderWithoutOrders")
     @ResponseBody
-    List<Tender> findTenderWithoutOrders(){
+    List<Tender> findTenderWithoutOrders() {
         return tableMapper.findTenderWithoutOrders();
     }
 
     @GetMapping("/TendernoDocumentation")
     @ResponseBody
-    List<Tender> findTendernoDocumentation(){
+    List<Tender> findTendernoDocumentation() {
         return tableMapper.findTendernoDocumentation();
     }
 
-    @RequestMapping( path = "/quarterTender/{category}")
+    @RequestMapping(path = "/quarterTender/{category}")
     @ResponseBody
-    public ArrayList<ReportQuarter> getQuartalTenderReport (@PathVariable Long category,@RequestBody ReceivedJSON json){
+    public ArrayList<ReportQuarter> getQuartalTenderReport(@PathVariable Long category, @RequestBody ReceivedJSON json) {
 
-        return reportService.getQuartalTenderReport(category,json);
+        return reportService.getQuartalTenderReport(category, json);
     }
 
-    @RequestMapping( path = "/quarterVendor/{category}")
+    @RequestMapping(path = "/quarterVendor/{category}")
     @ResponseBody
-    public ArrayList<ReportVendorQuarter>getQuartalVendorReport (@PathVariable Long category,@RequestBody ReceivedJSON json){
+    public ArrayList<ReportVendorQuarter> getQuartalVendorReport(@PathVariable Long category, @RequestBody ReceivedJSON json) {
 
-        return reportService.getQuartalVendorReport(category,json);
+        return reportService.getQuartalVendorReport(category, json);
     }
 
-    @RequestMapping( path = "/quarterNoVendor/{category}")
+    @RequestMapping(path = "/quarterNoVendor/{category}")
     @ResponseBody
-    public ArrayList<ReportVendorQuarter> getQuartalNoVendorReport (@PathVariable Long category,@RequestBody ReceivedJSON json){
+    public ArrayList<ReportVendorQuarter> getQuartalNoVendorReport(@PathVariable Long category, @RequestBody ReceivedJSON json) {
 
-        return reportService.getQuartalNoVendorReport(category,json);
+        return reportService.getQuartalNoVendorReport(category, json);
     }
 
     @PostMapping("/FileReport")
@@ -619,20 +691,20 @@ public class ApiController {
 
         XSSFCellStyle body = workbook.createCellStyle();
         body.setBorderTop(BorderStyle.THIN);
-        body.setBorderColor(XSSFCellBorder.BorderSide.TOP,colorborder);
+        body.setBorderColor(XSSFCellBorder.BorderSide.TOP, colorborder);
         body.setBorderRight(BorderStyle.THIN);
-        body.setBorderColor(XSSFCellBorder.BorderSide.RIGHT,colorborder);
+        body.setBorderColor(XSSFCellBorder.BorderSide.RIGHT, colorborder);
         body.setBorderBottom(BorderStyle.THIN);
-        body.setBorderColor(XSSFCellBorder.BorderSide.BOTTOM,colorborder);
+        body.setBorderColor(XSSFCellBorder.BorderSide.BOTTOM, colorborder);
         body.setBorderLeft(BorderStyle.THIN);
-        body.setBorderColor(XSSFCellBorder.BorderSide.LEFT,colorborder);
+        body.setBorderColor(XSSFCellBorder.BorderSide.LEFT, colorborder);
         body.setWrapText(true);
 
         XSSFCellStyle header = workbook.createCellStyle();
-        header.setFillForegroundColor(new  XSSFColor(new java.awt.Color(0,102,204)));
+        header.setFillForegroundColor(new XSSFColor(new java.awt.Color(0, 102, 204)));
         header.setFillPattern(FillPatternType.SOLID_FOREGROUND);
         XSSFFont headerFont = workbook.createFont();
-        headerFont.setColor(new XSSFColor(new java.awt.Color(255,255,255)));
+        headerFont.setColor(new XSSFColor(new java.awt.Color(255, 255, 255)));
         header.setFont(headerFont);
 
         for (ProductCategory productCategory : productCategories) {
@@ -652,63 +724,63 @@ public class ApiController {
                 rowNumber++;
                 ArrayList<ReportQuarter> reportQuarters = this.reportService.getQuartalTenderReport(productCategory.getId(), json);
                 if (reportQuarters.size() != 0) {
-                    for(ReportQuarter reportQuarter : reportQuarters){
+                    for (ReportQuarter reportQuarter : reportQuarters) {
                         row = sheet.createRow(rowNumber);
-                        row.createCell(1).setCellValue((json.isQuarter()?"FY":"") +reportQuarter.getYear());
+                        row.createCell(1).setCellValue((json.isQuarter() ? "FY" : "") + reportQuarter.getYear());
                         row.getCell(1).setCellStyle(body);
-                        row.createCell(2).setCellValue("Q"+reportQuarter.getQuarter());
+                        row.createCell(2).setCellValue("Q" + reportQuarter.getQuarter());
                         row.getCell(2).setCellStyle(body);
                         row.createCell(3).setCellValue(reportQuarter.getCount());
                         row.getCell(3).setCellStyle(body);
-                        row.createCell(4).setCellValue(reportQuarter.getSum() != null?reportQuarter.getSum().toString(): "");
+                        row.createCell(4).setCellValue(reportQuarter.getSum() != null ? reportQuarter.getSum().toString() : "");
                         row.getCell(4).setCellStyle(body);
-                        colums.add(reportQuarter.getYear() +" "+reportQuarter.getQuarter());
+                        colums.add(reportQuarter.getYear() + " " + reportQuarter.getQuarter());
                         rowNumber++;
                     }
                 }
                 rowNumber = rowNumber + 2;//Чтобы две строки пропустить
-                ArrayList<ReportVendorQuarter> reportVendorQuarters = this.reportService.getQuartalVendorReport(productCategory.getId(),json);
-                if (reportVendorQuarters.size() != 0){
+                ArrayList<ReportVendorQuarter> reportVendorQuarters = this.reportService.getQuartalVendorReport(productCategory.getId(), json);
+                if (reportVendorQuarters.size() != 0) {
                     row = sheet.createRow(rowNumber);
                     row.createCell(1).setCellValue("Название");
                     row.getCell(1).setCellStyle(header);
-                    for(int cell = 0;cell<colums.size();cell++){
-                        row.createCell(cell+2).setCellValue((json.isQuarter()?"FY":"")  + colums.get(cell).replace(" ","Q"));
-                        row.getCell(cell+2).setCellStyle(header);
+                    for (int cell = 0; cell < colums.size(); cell++) {
+                        row.createCell(cell + 2).setCellValue((json.isQuarter() ? "FY" : "") + colums.get(cell).replace(" ", "Q"));
+                        row.getCell(cell + 2).setCellStyle(header);
                     }
                     rowNumber++;
-                    for(ReportVendorQuarter reportVendorQuarter : reportVendorQuarters){
+                    for (ReportVendorQuarter reportVendorQuarter : reportVendorQuarters) {
                         row = sheet.createRow(rowNumber);
                         row.createCell(1).setCellValue(reportVendorQuarter.getVendor());
                         row.getCell(1).setCellStyle(body);
-                        for(int cell = 0;cell<colums.size();cell++){
-                            row.createCell(cell+2).setCellStyle(body);
-                            if(reportVendorQuarter.getQuarter().containsKey(colums.get(cell))){
-                                row.getCell(cell+2).setCellValue(reportVendorQuarter.getQuarter().get(colums.get(cell)));
+                        for (int cell = 0; cell < colums.size(); cell++) {
+                            row.createCell(cell + 2).setCellStyle(body);
+                            if (reportVendorQuarter.getQuarter().containsKey(colums.get(cell))) {
+                                row.getCell(cell + 2).setCellValue(reportVendorQuarter.getQuarter().get(colums.get(cell)));
                             }
                         }
                         rowNumber++;
                     }
                 }
                 rowNumber = rowNumber + 2;//Чтобы две строки пропустить
-                ArrayList<ReportVendorQuarter> reportNoVendorQuarters = this.reportService.getQuartalNoVendorReport(productCategory.getId(),json);
-                if (reportVendorQuarters.size() != 0){
+                ArrayList<ReportVendorQuarter> reportNoVendorQuarters = this.reportService.getQuartalNoVendorReport(productCategory.getId(), json);
+                if (reportVendorQuarters.size() != 0) {
                     row = sheet.createRow(rowNumber);
                     row.createCell(1).setCellValue("Название");
                     row.getCell(1).setCellStyle(header);
-                    for(int cell = 0;cell<colums.size();cell++){
-                        row.createCell(cell+2).setCellValue((json.isQuarter()?"FY":"") + colums.get(cell).replace(" ","Q"));
-                        row.getCell(cell+2).setCellStyle(header);
+                    for (int cell = 0; cell < colums.size(); cell++) {
+                        row.createCell(cell + 2).setCellValue((json.isQuarter() ? "FY" : "") + colums.get(cell).replace(" ", "Q"));
+                        row.getCell(cell + 2).setCellStyle(header);
                     }
                     rowNumber++;
-                    for(ReportVendorQuarter reportNoVendorQuarter : reportNoVendorQuarters){
+                    for (ReportVendorQuarter reportNoVendorQuarter : reportNoVendorQuarters) {
                         row = sheet.createRow(rowNumber);
                         row.createCell(1).setCellValue(reportNoVendorQuarter.getVendor());
                         row.getCell(1).setCellStyle(body);
-                        for(int cell = 0;cell<colums.size();cell++){
-                            row.createCell(cell+2).setCellStyle(body);
-                            if(reportNoVendorQuarter.getQuarter().containsKey(colums.get(cell))){
-                                row.getCell(cell+2).setCellValue(reportNoVendorQuarter.getQuarter().get(colums.get(cell)));
+                        for (int cell = 0; cell < colums.size(); cell++) {
+                            row.createCell(cell + 2).setCellStyle(body);
+                            if (reportNoVendorQuarter.getQuarter().containsKey(colums.get(cell))) {
+                                row.getCell(cell + 2).setCellValue(reportNoVendorQuarter.getQuarter().get(colums.get(cell)));
                             }
                         }
                         rowNumber++;
@@ -718,7 +790,7 @@ public class ApiController {
         }
 
 
-            File file = new File(pathname);
+        File file = new File(pathname);
         FileOutputStream fileOutputStream = new FileOutputStream(file);
         workbook.write(fileOutputStream);
         fileOutputStream.close();
@@ -733,21 +805,21 @@ public class ApiController {
 
     @PostMapping("/saveProduct/{id}")
     @ResponseBody
-    List<Product> saveProduct(@RequestBody Product product, @PathVariable Long id ){
+    List<Product> saveProduct(@RequestBody Product product, @PathVariable Long id) {
         String category = tableMapper.findNameCategoryById(id);
         String[] columns = tableMapper.findcolumnName(category);
 
-        if(product.getId() == null){
+        if (product.getId() == null) {
             StringBuilder insert = new StringBuilder("Insert into " + category + " (");
 //            Insert into oscilloscope (vendor_code, frequency ,vendor, vxi, usb, channel) values(#{vendor_code}, #{frequency},#{vendor}, #{vxi},#{usb}, #{channel})
-            for(String column : columns){
-                if(column.equals("id")){
-                   continue;
+            for (String column : columns) {
+                if (column.equals("id")) {
+                    continue;
                 }
                 insert.append(" ").append(column).append(",");
             }
             insert = new StringBuilder(insert.substring(0, insert.length() - 1) + ") values(");
-            for(String column : columns){
+            for (String column : columns) {
                 switch (column) {
                     case "id":
                         continue;
@@ -761,13 +833,13 @@ public class ApiController {
                         insert.append("'").append(product.getFrequency()).append("',");
                         break;
                     case "usb":
-                        insert.append("").append(product.getUsb()?1:0).append(",");
+                        insert.append("").append(product.getUsb() ? 1 : 0).append(",");
                         break;
                     case "vxi":
-                        insert.append("").append(product.getVxi()?1:0).append(",");
+                        insert.append("").append(product.getVxi() ? 1 : 0).append(",");
                         break;
                     case "portable":
-                        insert.append("").append(product.getPortable()?1:0).append(",");
+                        insert.append("").append(product.getPortable() ? 1 : 0).append(",");
                         break;
                     case "channel":
                         insert.append("'").append(product.getChannel()).append("',");
@@ -779,11 +851,10 @@ public class ApiController {
             }
             insert = new StringBuilder(insert.substring(0, insert.length() - 1) + ")");
             tableMapper.InsertProduct(insert.toString());
-            }
-            else{
+        } else {
             StringBuilder update = new StringBuilder("Update " + category + " set ");
 //            Update oscilloscope set vendor_code = #{vendor_code}, frequency = #{frequency},vendor = #{vendor}, vxi = #{portable}, usb= #{usb}, channel =#{channel} where id = #{id}
-            for(String column : columns){
+            for (String column : columns) {
                 switch (column) {
                     case "id":
                         continue;
@@ -797,13 +868,13 @@ public class ApiController {
                         update.append(column).append("='").append(product.getFrequency()).append("',");
                         break;
                     case "usb":
-                        update.append(column).append("=").append(product.getUsb() ?1:0).append(",");
+                        update.append(column).append("=").append(product.getUsb() ? 1 : 0).append(",");
                         break;
                     case "vxi":
-                        update.append(column).append("=").append(product.getVxi()?1:0).append(",");
+                        update.append(column).append("=").append(product.getVxi() ? 1 : 0).append(",");
                         break;
                     case "portable":
-                        update.append(column).append("=").append(product.getPortable()?1:0).append(",");
+                        update.append(column).append("=").append(product.getPortable() ? 1 : 0).append(",");
                         break;
                     case "channel":
                         update.append(column).append("='").append(product.getChannel()).append("',");
@@ -814,86 +885,61 @@ public class ApiController {
                 }
 
             }
-            update = new StringBuilder(update.substring(0,update.length()-1)+ " where id = '"+product.getId()+"'");
+            update = new StringBuilder(update.substring(0, update.length() - 1) + " where id = '" + product.getId() + "'");
             tableMapper.UpdateProduct(update.toString());
         }
         return tableMapper.findListProduct(searchAtribut.createSelectProductCategory(id));
-//        if(category == 1L){
-//            //анализатор спектра\
-//            Long a = product.getId() == null?
-//                    tableMapper.InsertSpectrum_analyser(product.getVendor_code(),product.getFrequency(),product.getVendor_id(),product.getPortable(),product.getUsb()) :
-//                    tableMapper.UpdateSpectrum_analyser(product.getVendor_code(),product.getFrequency(),product.getVendor_id(),product.getId(),product.getPortable(),product.getUsb()) ;
-//            return tableMapper.findAllSpectrum_analyserToProduct();
-//        }
-//        else if (category == 2L){
-//            //генератор сигналов
-//            Long a = product.getId() == null?
-//                    tableMapper.InsertSignalGenerator(product.getVendor_code(),product.getFrequency(),product.getVendor_id()) :
-//                    tableMapper.UpdateSignalGenerator(product.getVendor_code(),product.getFrequency(),product.getVendor_id(),product.getId()) ;
-//            return tableMapper.findAllSignalGeneratorToProduct();
-//        }
-//        else if (category == 3L){
-//            //генератор импульсов
-//            Long a = product.getId() == null?
-//                    tableMapper.InsertPulseGenerator(product.getVendor_code(),product.getFrequency(),product.getVendor_id()) :
-//                    tableMapper.UpdatePulseGenerator(product.getVendor_code(),product.getFrequency(),product.getVendor_id(),product.getId()) ;
-//            return tableMapper.findAllPulseGeneratorToProduct();
-//        }
-//        else if (category == 4L){
-//            //анализатор сигналов
-//            Long a = product.getId() == null?
-//            tableMapper.InsertSignalAnalyzer(product.getVendor_code(),product.getFrequency(),product.getVendor_id()) :
-//            tableMapper.UpdateSignalAnalyzer(product.getVendor_code(),product.getFrequency(),product.getVendor_id(),product.getId()) ;
-//            return tableMapper.findAllSignalAnalyzerToProduct();
-//        }
-//        else if (category == 5L){
-//            //анализатор цепей
-//            Long a = product.getId() == null?
-//            tableMapper.InsertNetworkAnalyzers(product.getVendor_code(),product.getFrequency(),product.getVendor_id(),product.getUsb()) :
-//            tableMapper.UpdateNetworkAnalyzers(product.getVendor_code(),product.getFrequency(),product.getVendor_id(),product.getId(),product.getUsb()) ;
-//            return tableMapper.findAllNetworkAnalyzersToProduct();
-//        }
-//        else if (category == 6L){
-//            //осциллограф
-//            Long a = product.getId() == null?
-//                    tableMapper.InsertOscilloscope(product.getVendor_code(),product.getFrequency(),product.getVendor_id(),product.getVxi(),product.getUsb(),product.getChannel()) :
-//                    tableMapper.UpdateOscilloscope(product.getVendor_code(),product.getFrequency(),product.getVendor_id(),product.getId(),product.getVxi(),product.getUsb(),product.getChannel()) ;
-//            return tableMapper.findAllOscilloscopeToProduct();
-//        }
-//        else{
-//            //Продукты
-//            Long a = product.getId() == null?
-//                    tableMapper.InsertAnotherProduct(product.getVendor_code()) :
-//                    tableMapper.UpdateAnotherProduct(product.getVendor_code(),product.getId()) ;
-//            return tableMapper.findAllAnotherProductToProduct();
-//        }
 
     }
 
     @PostMapping("/saveTender")
     @ResponseBody
-    Tender saveTender(@RequestBody Tender tender){
-        tableMapper.UpdateTender(tender.getId(), tender.getName_tender(),tender.getBico_tender(),tender.getGos_zakupki(),tender.getDate_start(),tender.getDate_finish(),tender.getDate_tranding(),tender.getNumber_tender(),tender.getFull_sum(),tender.getWin_sum(),tender.getCurrency(),tender.getPrice(),tender.getRate(),tender.getSum(),Long.valueOf(tender.getCustomer()),Long.valueOf(tender.getTypetender()),Long.valueOf(tender.getWinner()),tender.isDublicate());
+    Tender saveTender(@RequestBody Tender tender) {
+        tableMapper.UpdateTender(tender.getId(), tender.getName_tender(), tender.getBico_tender(), tender.getGos_zakupki(), tender.getDate_start(), tender.getDate_finish(), tender.getDate_tranding(), tender.getNumber_tender(), tender.getFull_sum(), tender.getWin_sum(), tender.getCurrency(), tender.getPrice(), tender.getRate(), tender.getPrice().multiply(BigDecimal.valueOf(tender.getRate())), Long.valueOf(tender.getCustomer()), Long.valueOf(tender.getTypetender()), Long.valueOf(tender.getWinner()), tender.isDublicate());
         return tableMapper.findTenderbyId(tender.getId());
     }
-
+    @PostMapping("/saveAdjacentTender")
+    @ResponseBody
+    Tender saveAdjacentTender(@RequestBody Tender tender) {
+        tableMapper.UpdateAdjacentTender(tender.getId(), tender.getName_tender(), tender.getBico_tender(), tender.getGos_zakupki(), tender.getDate_start(), tender.getDate_finish(), tender.getDate_tranding(), tender.getNumber_tender(), tender.getFull_sum(), tender.getCurrency(), tender.getPrice(), tender.getRate(), tender.getPrice().multiply(BigDecimal.valueOf(tender.getRate())), Long.valueOf(tender.getCustomer()), Long.valueOf(tender.getTypetender()), tender.isDublicate());
+        return tableMapper.findTenderbyId(tender.getId());
+    }
+    @GetMapping("/TenderByID/{id}")
+    @ResponseBody
+    Tender TenderByID(@PathVariable Long id) {
+        return tableMapper.findTenderbyId(id);
+    }
+    @GetMapping("/AdjacentTenderByID/{id}")
+    @ResponseBody
+    Tender AdjacentTenderByID(@PathVariable Long id) {
+        return tableMapper.findAdjacentTenderbyId(id);
+    }
     @PostMapping("/TenderOnProduct")
     @ResponseBody
-    List<Tender> TenderOnProduct( @RequestBody TenderProduct json ) {
-        return tableMapper.TenderOnProduct(json.getProductCategory(), json.getDateStart(),json.getDateFinish(), json.getProduct());
+    List<Tender> TenderOnProduct(@RequestBody TenderProduct json) {
+        return tableMapper.TenderOnProduct(json.getProductCategory(), json.getDateStart(), json.getDateFinish(), json.getProduct());
     }
 
     @GetMapping("/Country")
     @ResponseBody
-    List<Country> Country(){
+    List<Country> Country() {
         return tableMapper.findAllCountry();
     }
 
     @GetMapping("/DeleteTender/{tender}")
     @ResponseBody
-    Map<String,String> DeleteTender(@PathVariable Long tender){
+    Map<String, String> DeleteTender(@PathVariable Long tender) {
         tableMapper.DeleteTender(tender);
-        HashMap<String,String> a = new HashMap<>();
+        HashMap<String, String> a = new HashMap<>();
+        a.put("name", "good");
+        return a;
+    }
+
+    @GetMapping("/DeleteAdjacentTender/{tender}")
+    @ResponseBody
+    Map<String, String> DeleteAdjacentTenderr(@PathVariable Long tender) {
+        tableMapper.DeleteAdjacentTender(tender);
+        HashMap<String, String> a = new HashMap<>();
         a.put("name", "good");
         return a;
     }
@@ -902,7 +948,7 @@ public class ApiController {
     @PostMapping("/File")
     @ResponseBody
     ResponseEntity<Resource> downloadFile(@RequestBody ReceivedJSON json) throws IOException {
-        List<Tender> tenders = searchAtribut.findTenderByTerms(json);
+        List<Tender> tenders = tableMapper.findAllTenderTerms(searchAtribut.findTenderByTerms(json));
         XSSFWorkbook workbook = new XSSFWorkbook();
         CreationHelper createHelper = workbook.getCreationHelper();
         XSSFSheet sheet = workbook.createSheet("Станица");
@@ -911,83 +957,82 @@ public class ApiController {
         XSSFCellStyle hlinkstyle = workbook.createCellStyle();
         XSSFFont hlinkfont = workbook.createFont();
         hlinkfont.setUnderline(XSSFFont.U_SINGLE);
-        hlinkfont.setColor(new XSSFColor(new java.awt.Color(30,144,255)));
+        hlinkfont.setColor(new XSSFColor(new java.awt.Color(30, 144, 255)));
         hlinkstyle.setFont(hlinkfont);
         hlinkstyle.setWrapText(true);
         hlinkstyle.setBorderTop(BorderStyle.THIN);
-        hlinkstyle.setBorderColor(XSSFCellBorder.BorderSide.TOP,colorborder);
+        hlinkstyle.setBorderColor(XSSFCellBorder.BorderSide.TOP, colorborder);
         hlinkstyle.setBorderRight(BorderStyle.THIN);
-        hlinkstyle.setBorderColor(XSSFCellBorder.BorderSide.RIGHT,colorborder);
+        hlinkstyle.setBorderColor(XSSFCellBorder.BorderSide.RIGHT, colorborder);
         hlinkstyle.setBorderBottom(BorderStyle.THIN);
-        hlinkstyle.setBorderColor(XSSFCellBorder.BorderSide.BOTTOM,colorborder);
+        hlinkstyle.setBorderColor(XSSFCellBorder.BorderSide.BOTTOM, colorborder);
         hlinkstyle.setBorderLeft(BorderStyle.THIN);
-        hlinkstyle.setBorderColor(XSSFCellBorder.BorderSide.LEFT,colorborder);
+        hlinkstyle.setBorderColor(XSSFCellBorder.BorderSide.LEFT, colorborder);
 
         XSSFCellStyle body = workbook.createCellStyle();
         body.setBorderTop(BorderStyle.THIN);
-        body.setBorderColor(XSSFCellBorder.BorderSide.TOP,colorborder);
+        body.setBorderColor(XSSFCellBorder.BorderSide.TOP, colorborder);
         body.setBorderRight(BorderStyle.THIN);
-        body.setBorderColor(XSSFCellBorder.BorderSide.RIGHT,colorborder);
+        body.setBorderColor(XSSFCellBorder.BorderSide.RIGHT, colorborder);
         body.setBorderBottom(BorderStyle.THIN);
-        body.setBorderColor(XSSFCellBorder.BorderSide.BOTTOM,colorborder);
+        body.setBorderColor(XSSFCellBorder.BorderSide.BOTTOM, colorborder);
         body.setBorderLeft(BorderStyle.THIN);
-        body.setBorderColor(XSSFCellBorder.BorderSide.LEFT,colorborder);
+        body.setBorderColor(XSSFCellBorder.BorderSide.LEFT, colorborder);
         body.setWrapText(true);
 
         XSSFCellStyle header = workbook.createCellStyle();
-        header.setFillForegroundColor(new  XSSFColor(new java.awt.Color(0,102,204)));
+        header.setFillForegroundColor(new XSSFColor(new java.awt.Color(0, 102, 204)));
         header.setFillPattern(FillPatternType.SOLID_FOREGROUND);
         XSSFFont headerFont = workbook.createFont();
-        headerFont.setColor(new XSSFColor(new java.awt.Color(255,255,255)));
+        headerFont.setColor(new XSSFColor(new java.awt.Color(255, 255, 255)));
         header.setFont(headerFont);
 
         XSSFCellStyle price = workbook.createCellStyle();
         price.setBorderTop(BorderStyle.THIN);
-        price.setBorderColor(XSSFCellBorder.BorderSide.TOP,colorborder);
+        price.setBorderColor(XSSFCellBorder.BorderSide.TOP, colorborder);
         price.setBorderRight(BorderStyle.THIN);
-        price.setBorderColor(XSSFCellBorder.BorderSide.RIGHT,colorborder);
+        price.setBorderColor(XSSFCellBorder.BorderSide.RIGHT, colorborder);
         price.setBorderBottom(BorderStyle.THIN);
-        price.setBorderColor(XSSFCellBorder.BorderSide.BOTTOM,colorborder);
+        price.setBorderColor(XSSFCellBorder.BorderSide.BOTTOM, colorborder);
         price.setBorderLeft(BorderStyle.THIN);
-        price.setBorderColor(XSSFCellBorder.BorderSide.LEFT,colorborder);
+        price.setBorderColor(XSSFCellBorder.BorderSide.LEFT, colorborder);
         price.setDataFormat(createHelper.createDataFormat().getFormat("#,##0.00"));
 
 
-
         XSSFCellStyle cellStyle = workbook.createCellStyle();
-        XSSFDataFormat dateFormat = (XSSFDataFormat)workbook.createDataFormat();
+        XSSFDataFormat dateFormat = (XSSFDataFormat) workbook.createDataFormat();
         cellStyle.setDataFormat(dateFormat.getFormat("dd.MM.yyyy HH:mm:ss"));
 //       cellStyle.setDataFormat(
 //               createHelper.createDataFormat().getFormat("dd.MM.yyyy HH:mm:ss"));
-       // cellStyle.setWrapText(true);
+        // cellStyle.setWrapText(true);
         cellStyle.setBorderTop(BorderStyle.THIN);
-        cellStyle.setBorderColor(XSSFCellBorder.BorderSide.TOP,colorborder);
+        cellStyle.setBorderColor(XSSFCellBorder.BorderSide.TOP, colorborder);
         cellStyle.setBorderRight(BorderStyle.THIN);
-        cellStyle.setBorderColor(XSSFCellBorder.BorderSide.RIGHT,colorborder);
+        cellStyle.setBorderColor(XSSFCellBorder.BorderSide.RIGHT, colorborder);
         cellStyle.setBorderBottom(BorderStyle.THIN);
-        cellStyle.setBorderColor(XSSFCellBorder.BorderSide.BOTTOM,colorborder);
+        cellStyle.setBorderColor(XSSFCellBorder.BorderSide.BOTTOM, colorborder);
         cellStyle.setBorderLeft(BorderStyle.THIN);
-        cellStyle.setBorderColor(XSSFCellBorder.BorderSide.LEFT,colorborder);
+        cellStyle.setBorderColor(XSSFCellBorder.BorderSide.LEFT, colorborder);
         int numberRow = 0;
         XSSFRow row = sheet.createRow(numberRow);
-        sheet.setColumnWidth(0,39*256);
-        sheet.setColumnWidth(1,14*256);
-        sheet.setColumnWidth(2,14*256);
-        sheet.setColumnWidth(3,50*256);
-        sheet.setColumnWidth(4,39*256);
-        sheet.setColumnWidth(5,13*256);
-        sheet.setColumnWidth(6,14*256);
-        sheet.setColumnWidth(7,17*256);
-        sheet.setColumnWidth(8,5*256);
-        sheet.setColumnWidth(9,5*256);
-        sheet.setColumnWidth(10,20*256);
-        sheet.setColumnWidth(11,20*256);
-        sheet.setColumnWidth(12,12*256);
-        sheet.setColumnWidth(13,12*256);
-        sheet.setColumnWidth(14,12*256);
-        sheet.setColumnWidth(15,56*256);
-        sheet.setColumnWidth(16,39*256);
-        sheet.setColumnWidth(17,20*256);
+        sheet.setColumnWidth(0, 39 * 256);
+        sheet.setColumnWidth(1, 14 * 256);
+        sheet.setColumnWidth(2, 14 * 256);
+        sheet.setColumnWidth(3, 50 * 256);
+        sheet.setColumnWidth(4, 39 * 256);
+        sheet.setColumnWidth(5, 13 * 256);
+        sheet.setColumnWidth(6, 14 * 256);
+        sheet.setColumnWidth(7, 17 * 256);
+        sheet.setColumnWidth(8, 5 * 256);
+        sheet.setColumnWidth(9, 5 * 256);
+        sheet.setColumnWidth(10, 20 * 256);
+        sheet.setColumnWidth(11, 20 * 256);
+        sheet.setColumnWidth(12, 12 * 256);
+        sheet.setColumnWidth(13, 12 * 256);
+        sheet.setColumnWidth(14, 12 * 256);
+        sheet.setColumnWidth(15, 56 * 256);
+        sheet.setColumnWidth(16, 39 * 256);
+        sheet.setColumnWidth(17, 20 * 256);
         row.createCell(0).setCellValue("Заказчик");
         row.getCell(0).setCellStyle(header);
         row.createCell(1).setCellValue("ИН");
@@ -1024,8 +1069,8 @@ public class ApiController {
         row.getCell(16).setCellStyle(header);
         row.createCell(17).setCellValue("Сумма победителя");
         row.getCell(17).setCellStyle(header);
-        for(Tender tender: tenders){
-            numberRow+=1;
+        for (Tender tender : tenders) {
+            numberRow += 1;
             row = sheet.createRow(numberRow);
             row.setHeight((short) -1);
             row.createCell(0).setCellValue(tender.getCustomer());
@@ -1036,11 +1081,12 @@ public class ApiController {
             row.getCell(2).setCellStyle(body);
 
             row.createCell(3).setCellValue(tender.getName_tender());
-            XSSFHyperlink link= (XSSFHyperlink)createHelper.createHyperlink(HyperlinkType.URL);
-            link.setAddress(tender.getBico_tender());row.getCell(0).setCellStyle(body);
+            XSSFHyperlink link = (XSSFHyperlink) createHelper.createHyperlink(HyperlinkType.URL);
+            link.setAddress(tender.getBico_tender());
+            row.getCell(0).setCellStyle(body);
             row.getCell(3).setHyperlink((XSSFHyperlink) link);
             row.getCell(3).setCellStyle(hlinkstyle);
-            XSSFHyperlink linkGos= (XSSFHyperlink)createHelper.createHyperlink(HyperlinkType.URL);
+            XSSFHyperlink linkGos = (XSSFHyperlink) createHelper.createHyperlink(HyperlinkType.URL);
             linkGos.setAddress(tender.getGos_zakupki());
             row.createCell(4).setHyperlink((XSSFHyperlink) linkGos);
             row.getCell(4).setCellValue(tender.getGos_zakupki());
@@ -1070,13 +1116,12 @@ public class ApiController {
             row.createCell(13).setCellValue(tender.getDate_finish().toLocalDateTime().format(format_dateFile));
             row.getCell(13).setCellStyle(body);
 
-            if(tender.getDate_tranding() != null){
-                row.createCell(14).setCellValue( tender.getDate_tranding().toLocalDateTime().format(format_dateFile));
+            if (tender.getDate_tranding() != null) {
+                row.createCell(14).setCellValue(tender.getDate_tranding().toLocalDateTime().format(format_dateFile));
                 row.getCell(14).setCellStyle(body);
 
-            }
-            else{
-                row.createCell(14).setCellValue( "");
+            } else {
+                row.createCell(14).setCellValue("");
                 row.getCell(14).setCellStyle(body);
             }
             row.createCell(15).setCellValue(tender.getProduct());
@@ -1105,10 +1150,9 @@ public class ApiController {
     ResponseEntity<Resource> downloadProductFile(@PathVariable Long category) throws IOException {
         List<Product> products = tableMapper.findListProduct(searchAtribut.createSelectProductCategory(category));
         List<Product> productsNoUses = tableMapper.findListProduct(searchAtribut.createSelectProductNoUses(category));
-        if(products.isEmpty()){
+        if (products.isEmpty()) {
             return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
-        }
-        else{
+        } else {
             String[] columns = tableMapper.findcolumnName(tableMapper.findNameCategoryById(category));
 
             XSSFWorkbook workbook = new XSSFWorkbook();
@@ -1118,33 +1162,33 @@ public class ApiController {
 
             XSSFCellStyle body = workbook.createCellStyle();
             body.setBorderTop(BorderStyle.THIN);
-            body.setBorderColor(XSSFCellBorder.BorderSide.TOP,colorborder);
+            body.setBorderColor(XSSFCellBorder.BorderSide.TOP, colorborder);
             body.setBorderRight(BorderStyle.THIN);
-            body.setBorderColor(XSSFCellBorder.BorderSide.RIGHT,colorborder);
+            body.setBorderColor(XSSFCellBorder.BorderSide.RIGHT, colorborder);
             body.setBorderBottom(BorderStyle.THIN);
-            body.setBorderColor(XSSFCellBorder.BorderSide.BOTTOM,colorborder);
+            body.setBorderColor(XSSFCellBorder.BorderSide.BOTTOM, colorborder);
             body.setBorderLeft(BorderStyle.THIN);
-            body.setBorderColor(XSSFCellBorder.BorderSide.LEFT,colorborder);
+            body.setBorderColor(XSSFCellBorder.BorderSide.LEFT, colorborder);
             body.setWrapText(true);
 
             XSSFCellStyle dublicate = workbook.createCellStyle();
             dublicate.setBorderTop(BorderStyle.THIN);
-            dublicate.setBorderColor(XSSFCellBorder.BorderSide.TOP,colorborder);
+            dublicate.setBorderColor(XSSFCellBorder.BorderSide.TOP, colorborder);
             dublicate.setBorderRight(BorderStyle.THIN);
-            dublicate.setBorderColor(XSSFCellBorder.BorderSide.RIGHT,colorborder);
+            dublicate.setBorderColor(XSSFCellBorder.BorderSide.RIGHT, colorborder);
             dublicate.setBorderBottom(BorderStyle.THIN);
-            dublicate.setBorderColor(XSSFCellBorder.BorderSide.BOTTOM,colorborder);
+            dublicate.setBorderColor(XSSFCellBorder.BorderSide.BOTTOM, colorborder);
             dublicate.setBorderLeft(BorderStyle.THIN);
-            dublicate.setBorderColor(XSSFCellBorder.BorderSide.LEFT,colorborder);
+            dublicate.setBorderColor(XSSFCellBorder.BorderSide.LEFT, colorborder);
             dublicate.setWrapText(true);
             dublicate.setFillForegroundColor(new XSSFColor(new java.awt.Color(255, 215, 64)));
             dublicate.setFillPattern(FillPatternType.SOLID_FOREGROUND);
 
             XSSFCellStyle header = workbook.createCellStyle();
-            header.setFillForegroundColor(new  XSSFColor(new java.awt.Color(0,102,204)));
+            header.setFillForegroundColor(new XSSFColor(new java.awt.Color(0, 102, 204)));
             header.setFillPattern(FillPatternType.SOLID_FOREGROUND);
             XSSFFont headerFont = workbook.createFont();
-            headerFont.setColor(new XSSFColor(new java.awt.Color(255,255,255)));
+            headerFont.setColor(new XSSFColor(new java.awt.Color(255, 255, 255)));
             header.setFont(headerFont);
             header.setWrapText(true);
 
@@ -1153,84 +1197,84 @@ public class ApiController {
             XSSFRow row = sheet.createRow(numberRow);
 
             int numberColumn = 0;
-            HashMap<String,Integer> column = new HashMap<String, Integer>();
-            if(products.get(0).getId() != null){
-                sheet.setColumnWidth(numberColumn,5*256);
+            HashMap<String, Integer> column = new HashMap<String, Integer>();
+            if (products.get(0).getId() != null) {
+                sheet.setColumnWidth(numberColumn, 5 * 256);
                 row.createCell(numberColumn).setCellValue("ID");
                 row.getCell(numberColumn).setCellStyle(header);
-                column.put("id",numberColumn);
+                column.put("id", numberColumn);
                 numberColumn++;
             }
-            if(products.get(0).getVendor() != null){
-                sheet.setColumnWidth(numberColumn,14*256);
+            if (products.get(0).getVendor() != null) {
+                sheet.setColumnWidth(numberColumn, 14 * 256);
                 row.createCell(numberColumn).setCellValue("Вендор");
                 row.getCell(numberColumn).setCellStyle(header);
-                column.put("vendor",numberColumn);
+                column.put("vendor", numberColumn);
                 numberColumn++;
             }
-            if(products.get(0).getVendor_code() != null){
-                sheet.setColumnWidth(numberColumn,50*256);
+            if (products.get(0).getVendor_code() != null) {
+                sheet.setColumnWidth(numberColumn, 50 * 256);
                 row.createCell(numberColumn).setCellValue("Артикул/Название");
                 row.getCell(numberColumn).setCellStyle(header);
-                column.put("vendor_code",numberColumn);
+                column.put("vendor_code", numberColumn);
                 numberColumn++;
             }
-            if(products.get(0).getFrequency() != null){
-                sheet.setColumnWidth(numberColumn,17*256);
+            if (products.get(0).getFrequency() != null) {
+                sheet.setColumnWidth(numberColumn, 17 * 256);
                 row.createCell(numberColumn).setCellValue("Частота/Полоса пропускания");
                 row.getCell(numberColumn).setCellStyle(header);
-                column.put("frequency",numberColumn);
+                column.put("frequency", numberColumn);
                 numberColumn++;
             }
-            if(products.get(0).getChannel() != null){
-                sheet.setColumnWidth(numberColumn,17*256);
+            if (products.get(0).getChannel() != null) {
+                sheet.setColumnWidth(numberColumn, 17 * 256);
                 row.createCell(numberColumn).setCellValue("Каналы");
                 row.getCell(numberColumn).setCellStyle(header);
-                column.put("channel",numberColumn);
+                column.put("channel", numberColumn);
                 numberColumn++;
             }
-            if(products.get(0).getPort() != null){
-                sheet.setColumnWidth(numberColumn,17*256);
+            if (products.get(0).getPort() != null) {
+                sheet.setColumnWidth(numberColumn, 17 * 256);
                 row.createCell(numberColumn).setCellValue("Порты");
                 row.getCell(numberColumn).setCellStyle(header);
-                column.put("port",numberColumn);
+                column.put("port", numberColumn);
                 numberColumn++;
             }
-            if(products.get(0).getUsb() != null){
-                sheet.setColumnWidth(numberColumn,17*256);
+            if (products.get(0).getUsb() != null) {
+                sheet.setColumnWidth(numberColumn, 17 * 256);
                 row.createCell(numberColumn).setCellValue("USB");
                 row.getCell(numberColumn).setCellStyle(header);
-                column.put("usb",numberColumn);
+                column.put("usb", numberColumn);
                 numberColumn++;
             }
-            if(products.get(0).getVxi() != null){
-                sheet.setColumnWidth(numberColumn,17*256);
+            if (products.get(0).getVxi() != null) {
+                sheet.setColumnWidth(numberColumn, 17 * 256);
                 row.createCell(numberColumn).setCellValue("VXI");
                 row.getCell(numberColumn).setCellStyle(header);
-                column.put("vxi",numberColumn);
+                column.put("vxi", numberColumn);
                 numberColumn++;
             }
-            if(products.get(0).getPortable() != null){
-                sheet.setColumnWidth(numberColumn,17*256);
+            if (products.get(0).getPortable() != null) {
+                sheet.setColumnWidth(numberColumn, 17 * 256);
                 row.createCell(numberColumn).setCellValue("Портативный");
                 row.getCell(numberColumn).setCellStyle(header);
-                column.put("portable",numberColumn);
+                column.put("portable", numberColumn);
 
             }
 
-            for(Product product: products){
+            for (Product product : products) {
 
-                numberRow+=1;
+                numberRow += 1;
                 row = sheet.createRow(numberRow);
                 row.setHeight((short) -1);
                 boolean flag = false;
-                for(String col: columns){
-                    if(column.containsKey(col)){
+                for (String col : columns) {
+                    if (column.containsKey(col)) {
 
                         XSSFCell cell = row.createCell(column.get(col));
                         switch (col) {
                             case "id":
-                                if(productsNoUses.contains(product)){
+                                if (productsNoUses.contains(product)) {
                                     flag = true;
                                 }
                                 cell.setCellValue(product.getId());
@@ -1284,8 +1328,8 @@ public class ApiController {
 
     @PostMapping("/CreateTable")
     @ResponseBody
-    Map<String,String> CreateTable(@RequestBody NewTable table) throws JSONException {
-        tableMapper.InsertCategory(table.getName(),table.getName_en());
+    Map<String, String> CreateTable(@RequestBody NewTable table) throws JSONException {
+        tableMapper.InsertCategory(table.getName(), table.getName_en());
 //        CREATE TABLE `keysight`.`table` (
 //  `id` BIGINT NOT NULL AUTO_INCREMENT,
 //  `vendor_code` VARCHAR(225) NOT NULL,
@@ -1300,56 +1344,56 @@ public class ApiController {
 //    ON DELETE NO ACTION
 //    ON UPDATE NO ACTION);
 //  PRIMARY KEY (`id`));
-        String create = "Create table "+table.getName_en()+" (`id` BIGINT NOT NULL AUTO_INCREMENT, `vendor_code` VARCHAR(225) NOT NULL,";
-        if (table.isFrequency()){
+        String create = "Create table " + table.getName_en() + " (`id` BIGINT NOT NULL AUTO_INCREMENT, `vendor_code` VARCHAR(225) NOT NULL,";
+        if (table.isFrequency()) {
             create = create + "`frequency` DOUBLE NOT NULL DEFAULT 0,";
         }
-        if(table.isChannel()){
+        if (table.isChannel()) {
             create = create + "`channel` INT NOT NULL DEFAULT 0,";
         }
-        if(table.isPort()){
+        if (table.isPort()) {
             create = create + "`port` INT NOT NULL DEFAULT 0,";
         }
-        if(table.isUsb()){
+        if (table.isUsb()) {
             create = create + "`usb` TINYINT NOT NULL DEFAULT b'0',";
         }
-        if(table.isVxi()){
+        if (table.isVxi()) {
             create = create + "`vxi` TINYINT NOT NULL DEFAULT b'0',";
         }
-        if(table.isPortable()){
+        if (table.isPortable()) {
             create = create + "`portable` TINYINT NOT NULL DEFAULT b'0',";
         }
-        if(table.isVendor()){
-            create = create + "`vendor` BIGINT NOT NULL DEFAULT 1,INDEX `vendor_idx` (`vendor` ASC), CONSTRAINT `vendor_"+table.getName_en()+"` FOREIGN KEY (`vendor`) REFERENCES `keysight`.`vendor` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION,";
+        if (table.isVendor()) {
+            create = create + "`vendor` BIGINT NOT NULL DEFAULT 1,INDEX `vendor_idx` (`vendor` ASC), CONSTRAINT `vendor_" + table.getName_en() + "` FOREIGN KEY (`vendor`) REFERENCES `keysight`.`vendor` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION,";
         }
         create = create + " PRIMARY KEY (`id`));";
         tableMapper.CreateTable(create);
-        tableMapper.InsertProduct("Insert into "+table.getName_en()+"(vendor_code"+(table.isVendor()?",vendor)":")")+" values ('Без артикуля'"+(table.isVendor()?",'1')":")"));
-        HashMap<String,String> answear = new HashMap<>();
-        answear.put("name",table.getName());
+        tableMapper.InsertProduct("Insert into " + table.getName_en() + "(vendor_code" + (table.isVendor() ? ",vendor)" : ")") + " values ('Без артикуля'" + (table.isVendor() ? ",'1')" : ")"));
+        HashMap<String, String> answear = new HashMap<>();
+        answear.put("name", table.getName());
         return answear;
     }
 
     @GetMapping("/ChangeProduct/{categoryFirst}/{categorySecond}")
     @ResponseBody
-    String RemoveProduct(@PathVariable Long categoryFirst,@PathVariable Long categorySecond){
-        List<Product> FirstProduct= tableMapper.findListProduct(searchAtribut.createSelectProductCategory(categoryFirst));
+    String RemoveProduct(@PathVariable Long categoryFirst, @PathVariable Long categorySecond) {
+        List<Product> FirstProduct = tableMapper.findListProduct(searchAtribut.createSelectProductCategory(categoryFirst));
         String category = tableMapper.findNameCategoryById(categorySecond);
         String[] columns = tableMapper.findcolumnName(category);
-        for(Product product:FirstProduct){
+        for (Product product : FirstProduct) {
             Long id;
             StringBuilder insert = new StringBuilder("Insert into " + category + " (");
 //            Insert into oscilloscope (vendor_code, frequency ,vendor, vxi, usb, channel) values(#{vendor_code}, #{frequency},#{vendor}, #{vxi},#{usb}, #{channel})
-            if(tableMapper.findOneProduct(searchAtribut.createSelectProductCategory(categorySecond) + " where pr.vendor_code ='" + product.getVendor_code()+"'") == null){
-                for(String column : columns){
+            if (tableMapper.findOneProduct(searchAtribut.createSelectProductCategory(categorySecond) + " where pr.vendor_code ='" + product.getVendor_code() + "'") == null) {
+                for (String column : columns) {
 
-                    if(column.equals("id")){
+                    if (column.equals("id")) {
                         continue;
                     }
                     insert.append(" ").append(column).append(",");
                 }
                 insert = new StringBuilder(insert.substring(0, insert.length() - 1) + ") values(");
-                for(String column : columns){
+                for (String column : columns) {
                     switch (column) {
                         case "id":
                             continue;
@@ -1360,35 +1404,34 @@ public class ApiController {
                             insert.append("'").append(product.getVendor_code()).append("',");
                             break;
                         case "frequency":
-                            insert.append("'").append((product.getFrequency() != null?product.getFrequency():'0')).append("',");
+                            insert.append("'").append((product.getFrequency() != null ? product.getFrequency() : '0')).append("',");
                             break;
                         case "usb":
-                            insert.append(product.getUsb() != null ?(product.getUsb()?1:0):0).append(",");
+                            insert.append(product.getUsb() != null ? (product.getUsb() ? 1 : 0) : 0).append(",");
                             break;
                         case "vxi":
-                            insert.append(product.getVxi() != null ?(product.getVxi()?1:0):0).append(",");
+                            insert.append(product.getVxi() != null ? (product.getVxi() ? 1 : 0) : 0).append(",");
                             break;
                         case "portable":
-                            insert.append(product.getPortable() != null ?(product.getPortable()?1:0):0).append(",");
+                            insert.append(product.getPortable() != null ? (product.getPortable() ? 1 : 0) : 0).append(",");
                             break;
                         case "channel":
-                            insert.append("'").append(product.getChannel()!= null?product.getChannel():'0').append("',");
+                            insert.append("'").append(product.getChannel() != null ? product.getChannel() : '0').append("',");
                             break;
                         case "port":
-                            insert.append("'").append(product.getPort()!= null?product.getPort():'0').append("',");
+                            insert.append("'").append(product.getPort() != null ? product.getPort() : '0').append("',");
                             break;
                     }
                 }
                 insert = new StringBuilder(insert.substring(0, insert.length() - 1) + ")");
                 tableMapper.InsertProduct(insert.toString());
-                id =  tableMapper.findOneProduct(searchAtribut.createSelectProductCategory(categorySecond) + " where pr.vendor_code ='" + product.getVendor_code()+"'").getId();
+                id = tableMapper.findOneProduct(searchAtribut.createSelectProductCategory(categorySecond) + " where pr.vendor_code ='" + product.getVendor_code() + "'").getId();
+            } else {
+                id = tableMapper.findOneProduct(searchAtribut.createSelectProductCategory(categorySecond) + " where pr.vendor_code ='" + product.getVendor_code() + "'").getId();
             }
-            else {
-               id =  tableMapper.findOneProduct(searchAtribut.createSelectProductCategory(categorySecond) + " where pr.vendor_code ='" + product.getVendor_code()+"'").getId();
-            }
-            List<Long> orders = tableMapper.findAllOrdersIdbyProduct(product.getId(),categoryFirst);
-            for (Long order:orders){
-                tableMapper.ChangeProduct(order,id,categorySecond);
+            List<Long> orders = tableMapper.findAllOrdersIdbyProduct(product.getId(), categoryFirst);
+            for (Long order : orders) {
+                tableMapper.ChangeProduct(order, id, categorySecond);
             }
         }
 
@@ -1397,53 +1440,71 @@ public class ApiController {
 
     @PostMapping("/ChangeCategory")
     @ResponseBody
-    Map<String,String> ChangeCategory(@RequestBody ChangeCategory changeCategory){
-        List<Long> firstProduct = tableMapper.findAllOrdersIdbyProduct(changeCategory.getVendor_code(),changeCategory.getCategory());
-        for(Long id: firstProduct){
-            tableMapper.ChangeProduct(id,changeCategory.getNewVendor_code(),changeCategory.getNewCategory());
+    Map<String, String> ChangeCategory(@RequestBody ChangeCategory changeCategory) {
+        List<Long> firstProduct = tableMapper.findAllOrdersIdbyProduct(changeCategory.getVendor_code(), changeCategory.getCategory());
+        for (Long id : firstProduct) {
+            tableMapper.ChangeProduct(id, changeCategory.getNewVendor_code(), changeCategory.getNewCategory());
+            searchAtribut.UpdateProductTender(tableMapper.findTenderIdbyId(id));
         }
 
-        HashMap<String,String> a = new HashMap<>();
-        a.put("name","Заменил");
+        HashMap<String, String> a = new HashMap<>();
+        a.put("name", "Заменил");
         return a;
     }
 
-    @PostMapping( path = "/Test")
+    @PostMapping(path = "/Test")
     @ResponseBody
-    Map<String,String> Test (@RequestBody ReceivedJSON json) throws  JSONException {
+    Map<String, String> Test(@RequestBody ReceivedJSON json) throws JSONException {
         List<ProductCategory> productCategories = tableMapper.findAllProductCategory();
-        for (ProductCategory productCategory : productCategories){
-            if (!productCategory.getCategory().equals("Продукты")){
-                ArrayList<ReportQuarter> reportVendorQuarter = this.reportService.getQuartalTenderReport(productCategory.getId(),json);
-                if(reportVendorQuarter.size() != 0){
+        for (ProductCategory productCategory : productCategories) {
+            if (!productCategory.getCategory().equals("Продукты")) {
+                ArrayList<ReportQuarter> reportVendorQuarter = this.reportService.getQuartalTenderReport(productCategory.getId(), json);
+                if (reportVendorQuarter.size() != 0) {
                     System.out.println(reportVendorQuarter.get(0).toString());
                 }
             }
         }
-        HashMap<String,String> a = new HashMap<>();
+        HashMap<String, String> a = new HashMap<>();
 
         a.put("name", "good");
         return a;
     }
+
     @GetMapping(path = "/Log")
     @ResponseBody
-    Map<String,String> Log (){
-        HashMap<String,String> a = new HashMap<>();
+    Map<String, String> Log() {
+        HashMap<String, String> a = new HashMap<>();
         String answear = "";
-        try(FileInputStream fin=new FileInputStream(log))
-        {
-            int i=-1;
-            while((i=fin.read())!=-1){
-                answear = answear + (char)i;
+        try (FileInputStream fin = new FileInputStream(log)) {
+            int i = -1;
+            while ((i = fin.read()) != -1) {
+                answear = answear + (char) i;
 
             }
-        }
-        catch(IOException ex){
+        } catch (IOException ex) {
 
             System.out.println(ex.getMessage());
         }
         a.put("name", answear);
         return a;
     }
+
+    @GetMapping(path = "/ADDINN")
+    @ResponseBody
+    Map<String, String> ADDINN() throws JSONException {
+        HashMap<String, String> a = new HashMap<>();
+
+        List<Long> customers = tableMapper.CustomersZeroINN();
+        for (Long customer : customers) {
+            String Bico = tableMapper.BicoNumberbyCustomer(customer);
+            JSONObject tender = bicotender.loadTender(Long.valueOf(Bico));
+            JSONObject company = new JSONObject(tender.get("company").toString());
+            if (!company.get("inn").toString().equals("null")) {
+                tableMapper.updateCustomerInnAndCountry(company.get("inn").toString(), customer);
+                a.put(customer.toString(),company.get("inn").toString());
+            }
+        }
+        return a;
+}
 }
 

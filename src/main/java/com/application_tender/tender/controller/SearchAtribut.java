@@ -8,8 +8,10 @@ import com.application_tender.tender.subsidiaryModels.ReceivedJSON;
 import org.apache.poi.xssf.usermodel.XSSFCellStyle;
 import org.springframework.stereotype.Controller;
 
+import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
+import java.util.LinkedList;
 import java.util.List;
 
 @Controller
@@ -23,7 +25,7 @@ public class SearchAtribut {
     public Long findCustomer (String inn, String name) {
        Long idCustomer = 0L;
 
-        if(inn.length() == 0){
+        if(inn.equals("null")){
             inn = "0";
 
             idCustomer = tableMapper.findCustomerByName(name);
@@ -33,11 +35,16 @@ public class SearchAtribut {
         }
         if( idCustomer == null){
             //добавление новой записи
-            tableMapper.insertCustomer(inn,name,1L); // Заменить
+            if(inn.equals("0")){
+                tableMapper.insertCustomer(inn,name,1L);
+            }
+            else {
+                tableMapper.insertCustomer(inn,name,2L);
+            }
             idCustomer = tableMapper.findCustomerByNameandINN(name,inn);
         }
         else {
-            if(inn.length() != 0L && tableMapper.findCustomerInnById(idCustomer) == "0"){
+            if(inn.length() != 0L && tableMapper.findCustomerInnById(idCustomer).equals("0")){
                 tableMapper.updateCustomerInn(inn,idCustomer);
             }
         }
@@ -90,13 +97,14 @@ public class SearchAtribut {
 
     private final DateTimeFormatter format_sql = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss z");
 
-    public List<Tender> findTenderByTerms(ReceivedJSON json){
+    public String findTenderByTerms(ReceivedJSON json){
         String where = "where";
         if(json.getDateStart() != null ){
             where = where +  " date_start >= \"" + json.getDateStart().format(format_sql)+"\"";
         }
         if(json.getDateFinish() != null){
-            where = where +  (where.equals("where")?" date_start <= \"" + json.getDateFinish().format(format_sql)+"\"":" and date_start <= \"" + json.getDateFinish().format(format_sql)+"\"");
+            ZonedDateTime finish = json.getDateFinish().plusHours(23L-json.getDateFinish().getHour());
+            where = where +  (where.equals("where")?" date_start <= \"" + finish.format(format_sql)+"\"":" and date_start <= \"" + finish.format(format_sql)+"\"");
         }
         if(json.getType() != null && json.getType().length != 0){
             String type = "(";
@@ -203,10 +211,10 @@ public class SearchAtribut {
            // where = where +  (where.equals("where")?" tender.id in (" + id.toString().substring(1,id.toString().length()-1)+")":" and tender.id in (" + id.toString().substring(1,id.toString().length()-1)+")");
         }
         if(where.equals("where")){
-            return tableMapper.findAllTenderTerms("");
+            return "";
         }
         else{
-            return tableMapper.findAllTenderTerms(where);
+            return where;
         }
     }
 
@@ -280,4 +288,32 @@ public class SearchAtribut {
         return product;
     }
 
+    public String UpdateProductTender(Long idTender){
+        List<OrdersDB> ordersDB = tableMapper.findAllOrdersBDbyTender(idTender);
+        StringBuilder product = new StringBuilder();
+        if(ordersDB != null) {
+
+            List<Orders> orders = new LinkedList<Orders>();
+
+            for (OrdersDB orderDB : ordersDB) {
+
+                Product product_id = this.ProductToOrders(orderDB.getProduct_category(),orderDB.getId_product());
+
+                orderDB.setVendor(product_id == null ? Long.valueOf(1) : product_id.getVendor_id());
+                orders.add(new Orders(orderDB.getTender(),
+                        (orderDB.getProduct_category() != 7 ? tableMapper.findOneCategoryById(orderDB.getProduct_category()) : ""),
+                        product_id == null ? "" : product_id.getVendor_code() ,
+                        product_id == null || product_id.getVendor_id() == null || product_id.getVendor_id() == 1? "" : tableMapper.findOneVendorById(product_id.getVendor_id())  + ' ',
+                        orderDB.getComment(),
+                        orderDB.getNumber(),
+                        orderDB.getPrice(),
+                        orderDB.getWinprice()));
+            }
+            for(Orders order : orders){
+                product.append(order.ToDB()).append("; ");
+            }
+            tableMapper.UpdateProductTender(product.toString(), idTender);
+        }
+        return product.toString();
+    }
 }

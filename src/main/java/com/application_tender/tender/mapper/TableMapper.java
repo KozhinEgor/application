@@ -12,12 +12,10 @@ import java.util.List;
 @Mapper
 public interface TableMapper {
     final String atributTender = "distinct tender.id,name_tender, bico_tender,gos_zakupki,date_start, date_finish,date_tranding ,number_tender,  full_sum, win_sum, currency, tender.price, rate, sum, c.name as customer, c.inn as inn, type as typetender, w.name as winner, product, dublicate, country.name as country";
+    final String atributAdjacentTender  = "distinct tender.id,name_tender, bico_tender,gos_zakupki,date_start, date_finish,date_tranding ,number_tender,  full_sum, currency, tender.price, rate, sum, c.name as customer, c.inn as inn, type as typetender, dublicate, country.name as country";
 ///////////////////////////////////////////////////////////
 //              Tender SQL
 ///////////////////////////////////////////////////////////
-    @Select("Select " + atributTender +
-        " from tender left join customer c on c.id = tender.customer left join typetender t on t.id = tender.typetender left join winner w on w.id = tender.winner left join country on c.country = country.id where tender.id > 4378")
-        List<Tender> findAllTender();
 
     @Select("Select id from tender where number_tender = #{number_tender}")
         Long findTenderByNumber_tender(String number_tender);
@@ -30,28 +28,55 @@ public interface TableMapper {
         List<Long> findTenderByWinner(Long winner);
     @Select("Select id from tender where customer = #{customer}")
         List<Long> findTenderByCustomer(Long customer);
+    @Select("Select number_tender from tender where customer = #{customer} limit 1")
+        String BicoNumberbyCustomer(Long customer);
     ///
     @Select("Select " + atributTender +
             " from tender left join customer c on c.id = tender.customer left join typetender t on t.id = tender.typetender left join winner w on w.id = tender.winner left join country on c.country = country.id" +
             " ${where} order by date_start")
         List<Tender> findAllTenderTerms(String where);
-    // @Select("SELECT * from keysight.tender where year(date_start) = #{year} and quarter(date_start) = #{quarter}")
-   //     List<Tender> findForOrders(int year, int quarter);
     @Insert("insert into tender (name_tender, bico_tender,gos_zakupki,date_start, date_finish,date_tranding,number_tender,  full_sum, win_sum, currency, price, rate, sum, customer, typetender, winner) " +
             "values (#{name_tender}, #{bico_tender},#{gos_zakupki},#{date_start}, #{date_finish},#{date_tranding},#{number_tender},  #{full_sum}, #{win_sum}, #{currency}, #{price}, #{rate}, #{sum}, #{customer}, #{typetender}, #{winner}) ")
-        Long insertTender(String name_tender, String bico_tender, String gos_zakupki, ZonedDateTime date_start,ZonedDateTime date_finish,ZonedDateTime date_tranding, String number_tender, BigDecimal full_sum, BigDecimal win_sum, String currency, BigDecimal price, Double rate, BigDecimal sum, Long customer, Long typetender, Long winner);
+        void insertTender(String name_tender, String bico_tender, String gos_zakupki, ZonedDateTime date_start,ZonedDateTime date_finish,ZonedDateTime date_tranding, String number_tender, BigDecimal full_sum, BigDecimal win_sum, String currency, BigDecimal price, Double rate, BigDecimal sum, Long customer, Long typetender, Long winner);
     @Update("Update tender set product = #{product} where id = #{id}")
         Long UpdateProductTender(String product, Long id);
     @Update("Update tender set  name_tender =#{name_tender} , bico_tender=#{bico_tender},gos_zakupki=#{gos_zakupki},date_start=#{date_start}, date_finish=#{date_finish},date_tranding=#{date_tranding} ,number_tender=#{number_tender},  full_sum=#{full_sum}, win_sum=#{win_sum}, currency=#{currency}, price=#{price}, rate=#{rate}, sum=#{sum}, customer=#{customer}, typetender=#{typetender}, winner=#{winner}, dublicate=#{dublicate} where id = #{id}")
         void UpdateTender(Long id,String name_tender,String bico_tender, String gos_zakupki, ZonedDateTime date_start,ZonedDateTime date_finish,ZonedDateTime date_tranding ,String number_tender,BigDecimal  full_sum,BigDecimal win_sum,String currency,BigDecimal price,double rate,BigDecimal sum,Long customer,Long typetender,Long winner,Boolean dublicate);
-    @Update("Update tender set price = #{price}, sum = #{sum} where id = #{id}")
-        Long UpdateSum(BigDecimal price, BigDecimal sum,Long id);
+    @Update("Update tender set customer = #{customer} where tender.id = #{tender}")
+    void changeCustomerTender(Long tender, Long customer);
+
     @Delete("DELETE FROM tender where id = #{id} limit 1")
         void DeleteTender(Long id);
-    @Update("Update tender set rate =  #{rate}, sum = #{sum} where id = #{id}")
-        Long UpdateRate(Double rate, BigDecimal sum, Long id);
-    @Update("Update tender set date_start = #{date_start}, date_finish= #{date_finish} where id = #{id}")
-        Long UpdateDate(Long id, ZonedDateTime date_start,ZonedDateTime date_finish);
+///////////////////////////////////////////////////////////
+//              AdjacentTender SQL adjacent_tender
+///////////////////////////////////////////////////////////
+    @Select("Select id from adjacent_tender where number_tender = #{number_tender}")
+    Long findAdjacentTenderByNumber_tender(String number_tender);
+
+    @Select("Select " + atributAdjacentTender  +
+            " from adjacent_tender as tender left join customer c on c.id = tender.customer left join typetender t on t.id = tender.typetender left join country on c.country = country.id where tender.id = #{id}")
+    Tender findAdjacentTenderbyId(Long id);
+
+    @Select("Select id from adjacent_tender where customer = #{customer}")
+    List<Long> findAdjacentTenderByCustomer(Long customer);
+
+    @Select("Select " + atributAdjacentTender +
+            " from adjacent_tender as tender left join customer c on c.id = tender.customer left join typetender t on t.id = tender.typetender left join country on c.country = country.id" +
+            " ${where} order by date_start")
+    List<Tender> findAllAdjacentTenderTerms(String where);
+
+    @Insert("insert into adjacent_tender (name_tender, bico_tender,gos_zakupki,date_start, date_finish,date_tranding,number_tender,  full_sum, currency, price, rate, sum, customer, typetender) " +
+            "values (#{name_tender}, #{bico_tender},#{gos_zakupki},#{date_start}, #{date_finish},#{date_tranding},#{number_tender},  #{full_sum}, #{currency}, #{price}, #{rate}, #{sum}, #{customer}, #{typetender}) ")
+    void insertAdjacentTender(String name_tender, String bico_tender, String gos_zakupki, ZonedDateTime date_start,ZonedDateTime date_finish,ZonedDateTime date_tranding, String number_tender, BigDecimal full_sum, String currency, BigDecimal price, Double rate, BigDecimal sum, Long customer, Long typetender);
+
+    @Update("Update adjacent_tender set  name_tender =#{name_tender} , bico_tender=#{bico_tender},gos_zakupki=#{gos_zakupki},date_start=#{date_start}, date_finish=#{date_finish},date_tranding=#{date_tranding} ,number_tender=#{number_tender},  full_sum=#{full_sum}, currency=#{currency}, price=#{price}, rate=#{rate}, sum=#{sum}, customer=#{customer}, typetender=#{typetender}, dublicate=#{dublicate} where id = #{id}")
+    void UpdateAdjacentTender(Long id,String name_tender,String bico_tender, String gos_zakupki, ZonedDateTime date_start,ZonedDateTime date_finish,ZonedDateTime date_tranding ,String number_tender,BigDecimal  full_sum,String currency,BigDecimal price,double rate,BigDecimal sum,Long customer,Long typetender,Boolean dublicate);
+
+    @Update("Update adjacent_tender set customer = #{customer} where tender.id = #{tender}")
+    void changeCustomerAdjacentTender(Long tender, Long customer);
+
+    @Delete("DELETE FROM adjacent_tender where id = #{id} limit 1")
+    void DeleteAdjacentTender(Long id);
 ///////////////////////////////////////////////////////////
 //              ProductCategory SQL
 ///////////////////////////////////////////////////////////
@@ -194,16 +219,19 @@ public interface TableMapper {
         String findCustomerInnById(Long id);
     @Select("Select name from customer where id = #{id} limit 1")
     String findCustomerNameById(Long id);
+    @Select("Select id from customer where inn = 0 and id > 1067 limit 100")
+    List<Long> CustomersZeroINN();
     @Insert("INSERT into customer (name,inn, country) values (#{name},#{inn},#{country})")
         void insertCustomer(String inn, String name, Long country);
     @Update("UPDATE customer SET inn = #{inn} WHERE id = #{id}")
         void updateCustomerInn(String inn,Long id);
+    @Update("UPDATE customer SET inn = #{inn},country = 2 WHERE id = #{id}")
+    void updateCustomerInnAndCountry(String inn,Long id);
     @Update("UPDATE customer SET inn = #{inn}, name = #{name}, country = #{country} WHERE id = #{id}")
     void updateCustomer(Long id, String inn, String name, Long country);
     @Delete("Delete from customer where id = #{id}")
     void deleteCustomer(Long id);
-    @Update("Update tender set customer = #{customer} where tender.id = #{tender}")
-    void changeCustomer(Long tender, Long customer);
+
 ///////////////////////////////////////////////////////////
 //              Type_tender SQL
 ///////////////////////////////////////////////////////////
@@ -248,7 +276,8 @@ public interface TableMapper {
         List<OrdersDB> findAllOrdersBDbyTender(Long tender);
     @Select("Select id from orders where tender = #{tender}")
         List<Long> findAllOrdersIdbyTender(Long tender);
-
+    @Select("Select tender from orders where id = #{id}")
+        Long findTenderIdbyId(Long id);
     @Select("Select id,comment,id_product,product_category,tender,number,price,win_price as winprice from orders where tender = #{tender} and product_category = #{product_category}")
         List<OrdersDB> findAllOrdersbyTender(Long tender, Long product_category);
     @Insert("insert into orders (comment, id_product,product_category,tender,number,price,win_price) values (#{comment}, #{id_product},#{product_category},#{tender},#{number},#{price},#{win_price})")

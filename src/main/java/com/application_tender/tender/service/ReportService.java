@@ -75,7 +75,7 @@ public class ReportService {
         boolean flagFinish = false;
 
 
-            List<Tender> tender = searchAtribut.findTenderByTerms(json);
+            List<Tender> tender = tableMapper.findAllTenderTerms(searchAtribut.findTenderByTerms(json));
             if(json.getDateFinish() != null){
                 year = json.getDateFinish().getYear();
                 if (!json.isQuarter()){
