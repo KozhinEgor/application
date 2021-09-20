@@ -41,7 +41,7 @@ public class Authenticate {
             final User userDetails = userDetailsService.loadUserByUsername(authenctionRequest.getUsername());
 
             final String jwt = jwtUtil.generateToken(userDetails);
-            return ResponseEntity.ok(new AuthenticationResponse(jwt, userDetails.getUsername(), userDetails.getRole()));
+            return ResponseEntity.ok(new AuthenticationResponse(jwt, userDetails.getUsername(), userDetails.getRole(),userDetails.getId(),userDetails.getNickname()));
         } else {
             return  ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("No users");
         }

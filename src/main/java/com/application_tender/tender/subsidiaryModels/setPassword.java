@@ -4,7 +4,7 @@ public class setPassword {
     private String password;
     private String username;
     private String activationCode;
-
+    private String nickname;
     public setPassword() {
     }
 
@@ -30,5 +30,13 @@ public class setPassword {
 
     public void setActivationCode(String activationCode) {
         this.activationCode = activationCode;
+    }
+
+    public String getNickname() {
+        return nickname;
+    }
+
+    public void setNickname(String nickname) {
+        this.nickname = nickname;
     }
 }

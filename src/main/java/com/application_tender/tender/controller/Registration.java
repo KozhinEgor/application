@@ -13,7 +13,7 @@ import org.springframework.security.crypto.password.Pbkdf2PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
 import javax.swing.text.TabableView;
-import java.util.UUID;
+import java.util.*;
 
 @RestController
 @CrossOrigin(origins = "http://localhost:4200")
@@ -29,7 +29,7 @@ public class Registration {
     @PostMapping("/registration")
     @ResponseBody
     ResponseEntity registration(@RequestBody User user) {
-        System.out.println(user);
+//        System.out.println(user);
         if(tableMapper.findUserByUserName(user.getUsername()) != null){
             return ResponseEntity.status(500).build();
         }
@@ -43,7 +43,7 @@ public class Registration {
                                 "и введите данный код %s",
                         u.getUsername(),u.getRole().toString(),u.getActivationCode()
                 );
-                mailSender.send(user.getUsername(), "Письмо для реггистрации в приложении \"Application Tender\"",message);
+                mailSender.send(user.getUsername(), "Письмо для регистрации в приложении \"Application Tender\"",message);
                 return ResponseEntity.ok().build();
             }
             else{
@@ -55,9 +55,11 @@ public class Registration {
     @PostMapping("/setPassword")
     @ResponseBody
     ResponseEntity setPassword(@RequestBody setPassword setPassword) {
+
         User u = tableMapper.findUserByUserName(setPassword.getUsername());
         if(u != null){
             if(setPassword.getActivationCode().equals(u.getActivationCode())){
+                tableMapper.updateNickName(setPassword.getNickname(),u.getId());
                 tableMapper.updatePassword(passwordEncoder.encode(setPassword.getPassword()),u.getId());
                 return ResponseEntity.ok().build();
             }
@@ -69,4 +71,18 @@ public class Registration {
 
         return ResponseEntity.status(500).build();
     }
+    @PostMapping("/checkNickname")
+    @ResponseBody
+    Map<String,Boolean> checkNickname(@RequestBody String nickname) {
+        Map<String, Boolean> a = new HashMap<>();
+        if(tableMapper.findUserByNickname(nickname) == null){
+            a.put("name",true);
+          return  a;
+        }
+        else{
+            a.put("name",false);
+            return a;
+        }
+    }
+
 }

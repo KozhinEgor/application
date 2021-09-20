@@ -2,10 +2,10 @@ package com.application_tender.tender.controller;
 
 import com.application_tender.tender.mapper.TableMapper;
 import com.application_tender.tender.models.*;
+import com.application_tender.tender.subsidiaryModels.BigCategory;
 import com.application_tender.tender.subsidiaryModels.Product;
 import com.application_tender.tender.subsidiaryModels.ProductReceived;
 import com.application_tender.tender.subsidiaryModels.ReceivedJSON;
-import org.apache.poi.xssf.usermodel.XSSFCellStyle;
 import org.springframework.stereotype.Controller;
 
 import java.time.ZonedDateTime;
@@ -20,6 +20,10 @@ public class SearchAtribut {
 
     public SearchAtribut(TableMapper tableMapper) {
         this.tableMapper = tableMapper;
+    }
+
+    public Long findVendor(String name){
+        return tableMapper.findOneVendorByName(name);
     }
 
     public Long findCustomer (String inn, String name) {
@@ -64,8 +68,12 @@ public class SearchAtribut {
 
         String where = "";
         for(ProductReceived product : products){
-
-            if(product.getVendor_code() == null && product.getVendor() == null){
+            if(product.getBig_category() != null){
+                for(ProductCategory productCategory: product.getBig_category().getCategory()){
+                    where = where + (where.equals("")?" product_category ="+productCategory.getId():" or product_category ="+productCategory.getId());
+                }
+            }
+            else if(product.getVendor_code() == null && product.getVendor() == null){
                 where = where + (where.equals("")?" product_category ="+product.getCategory().getId():" or product_category ="+product.getCategory().getId());
                 }
             else if(product.getVendor_code() == null && product.getCategory() == null){
@@ -135,10 +143,10 @@ public class SearchAtribut {
         }
         if(json.getInnCustomer()!= null && json.getInnCustomer().length() != 0){
             if(json.isCustomExclude()){
-                where = where +  (where.equals("where")?" c.inn not like \""+ json.getInnCustomer() +"\"":" and c.inn not like \""+ json.getInnCustomer() +"\"");
+                where = where +  (where.equals("where")?" c.inn not like \""+ json.getInnCustomer().trim() +"\"":" and c.inn not like \""+ json.getInnCustomer().trim() +"\"");
             }
             else{
-                where = where +  (where.equals("where")?" c.inn like \""+ json.getInnCustomer() +"\"":" and c.inn like \""+ json.getInnCustomer() +"\"");
+                where = where +  (where.equals("where")?" c.inn like \""+ json.getInnCustomer().trim() +"\"":" and c.inn like \""+ json.getInnCustomer().trim() +"\"");
             }
         }
         if(json.getCountry() != null && json.getCountry() != null){
@@ -315,5 +323,26 @@ public class SearchAtribut {
             tableMapper.UpdateProductTender(product.toString(), idTender);
         }
         return product.toString();
+    }
+
+    public BigCategory makeBigCategory(Long big_category){
+        BigCategory bigCategory = new BigCategory() ;
+        bigCategory.setBig_category_id(big_category);
+        bigCategory.setBig_category(tableMapper.findBigCategorybyId(big_category));
+        List<Long> categoryId = tableMapper.findCategorybyBigCategory(big_category);
+        if(categoryId == null) {
+            bigCategory.setCategory(null);
+        }
+        else{
+            for(Long id: categoryId){
+                ProductCategory productCategory = tableMapper.findCategoryById(id);
+                if(productCategory != null){
+
+                    bigCategory.addCategory(productCategory);
+                }
+
+            }
+        }
+        return bigCategory;
     }
 }

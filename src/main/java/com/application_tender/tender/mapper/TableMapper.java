@@ -2,6 +2,7 @@ package com.application_tender.tender.mapper;
 
 import com.application_tender.tender.models.*;
 import com.application_tender.tender.subsidiaryModels.Product;
+import com.application_tender.tender.subsidiaryModels.ReportCompany;
 import com.application_tender.tender.subsidiaryModels.ReportQuarter;
 import org.apache.ibatis.annotations.*;
 
@@ -9,6 +10,8 @@ import org.apache.ibatis.annotations.*;
 import java.math.BigDecimal;
 import java.time.ZonedDateTime;
 import java.util.List;
+import java.util.Map;
+
 @Mapper
 public interface TableMapper {
     final String atributTender = "distinct tender.id,name_tender, bico_tender,gos_zakupki,date_start, date_finish,date_tranding ,number_tender,  full_sum, win_sum, currency, tender.price, rate, sum, c.name as customer, c.inn as inn, type as typetender, w.name as winner, product, dublicate, country.name as country";
@@ -24,6 +27,8 @@ public interface TableMapper {
             " from tender left join customer c on c.id = tender.customer left join typetender t on t.id = tender.typetender left join winner w on w.id = tender.winner left join country on c.country = country.id where tender.id = #{id}")
         Tender findTenderbyId(Long id);
     ////
+    @Select("Select distinct tender.id,name_tender,number_tender from tender where date_start>'2021-04-01' and date_start<'2021-08-01'")
+        List<Tender> findNameTenderByDate();
     @Select("Select id from tender where winner = #{winner}")
         List<Long> findTenderByWinner(Long winner);
     @Select("Select id from tender where customer = #{customer}")
@@ -44,7 +49,8 @@ public interface TableMapper {
         void UpdateTender(Long id,String name_tender,String bico_tender, String gos_zakupki, ZonedDateTime date_start,ZonedDateTime date_finish,ZonedDateTime date_tranding ,String number_tender,BigDecimal  full_sum,BigDecimal win_sum,String currency,BigDecimal price,double rate,BigDecimal sum,Long customer,Long typetender,Long winner,Boolean dublicate);
     @Update("Update tender set customer = #{customer} where tender.id = #{tender}")
     void changeCustomerTender(Long tender, Long customer);
-
+    @Update("Update tender set name_tender =#{name_tender} where tender.id = #{tender}")
+    void changeNameTender(Long tender, String name_tender);
     @Delete("DELETE FROM tender where id = #{id} limit 1")
         void DeleteTender(Long id);
 ///////////////////////////////////////////////////////////
@@ -84,10 +90,39 @@ public interface TableMapper {
         List<ProductCategory> findAllProductCategory();
     @Select("Select category from product_category where id = #{id} limit 1")
         String findOneCategoryById(Long id);
+    @Select("Select id,category,category_en from product_category where id = #{id} limit 1")
+        ProductCategory findCategoryById(Long id);
     @Select("Select category_en from product_category where id = #{id} limit 1")
         String findOneCategoryENById(Long id);
     @Insert("Insert into product_category (category,category_en) values (#{category},#{category_en})")
         void InsertCategory(String category, String category_en);
+///////////////////////////////////////////////////////////
+//              SynonymsProduct SQL synonyms_product
+///////////////////////////////////////////////////////////
+    @Select("Select synonyms_product.id,product_category.category as product_category,synonyms, product_category.id as id_category from synonyms_product left join product_category on product_category.id=synonyms_product.product_category")
+    List<SynonymsProduct> findAllSynonymsProduct();
+    @Insert("Insert into synonyms_product (product_category,synonyms) values (#{product_category},#{synonyms})")
+    void InsertSynonymsProduct(Long product_category, String synonyms);
+    @Update("Update synonyms_product set product_category = #{product_category},synonyms = #{synonyms} where id = #{id}")
+    void UpdateSynonymsProduct(Long id,Long product_category, String synonyms);
+    ///////////////////////////////////////////////////////////
+//              BigCategory SQL big_category
+//              SQL big_category_dependencies
+///////////////////////////////////////////////////////////
+    @Select("Select id from big_category")
+    List<Long> findAllBigCategory();
+    @Select("Select name from big_category where id =#{id}")
+    String findBigCategorybyId(Long id);
+    @Select("Select id from big_category where name =#{name}")
+    Long findBigCategorybyName(String name);
+    @Insert("Insert into big_category (name) values (#{name})")
+    void InsertBigCategory(String name);
+    @Select("Select category from big_category_dependencies where big_category = #{big_category}")
+        List<Long> findCategorybyBigCategory(Long big_category);
+    @Select("Insert into big_category_dependencies (big_category,category) values (#{big_category},#{category})")
+    void InsertBig_category_dependencies(Long big_category,Long category);
+    @Delete("DELETE FROM big_category_dependencies where big_category = #{big_category} and category = #{category}")
+    void DeleteBig_category_dependencies(Long big_category,Long category);
 ///////////////////////////////////////////////////////////
 //              Spectrum_analyser SQL   spectrum_analyser
 ///////////////////////////////////////////////////////////
@@ -207,7 +242,7 @@ public interface TableMapper {
 ///////////////////////////////////////////////////////////
     @Select("Select customer.id,inn,customer.name as name,country.name as country  from customer left join country on customer.country = country.id")
         List<Company> findAllCustomer();
-    @Select("Select customer.id,inn,customer.name as name,country.name as country  from customer left join country on customer.country = country.id where customer.id not in (Select distinct customer from tender)")
+    @Select("Select customer.id,inn,customer.name as name,country.name as country  from customer left join country on customer.country = country.id where customer.id not in (Select distinct customer from tender) and customer.id not in (Select distinct customer from adjacent_tender)")
     List<Company> findAllCustomerNoUses();
     @Select("Select id from customer where inn = #{inn} limit 1")
         Long findCustomerByInn(String inn);
@@ -219,7 +254,7 @@ public interface TableMapper {
         String findCustomerInnById(Long id);
     @Select("Select name from customer where id = #{id} limit 1")
     String findCustomerNameById(Long id);
-    @Select("Select id from customer where inn = 0 and id > 1067 limit 100")
+    @Select("Select id from customer where inn = 0 and id > 2140 limit 100")
     List<Long> CustomersZeroINN();
     @Insert("INSERT into customer (name,inn, country) values (#{name},#{inn},#{country})")
         void insertCustomer(String inn, String name, Long country);
@@ -265,6 +300,8 @@ public interface TableMapper {
         List<Vendor> findAllVendor();
     @Select("Select name from vendor where id = #{id}")
         String findOneVendorById(Long id);
+    @Select("Select id from vendor where name = #{name}")
+        Long findOneVendorByName(String name);
     @Select("Select * from vendor where id in(Select DISTINCT vendor from ${category})")
         List<Vendor> findAllVendorByCategory(String category);
 ///////////////////////////////////////////////////////////
@@ -286,6 +323,8 @@ public interface TableMapper {
         void updateOrder(Long id,String comment,Long id_product, Long product_category,Long tender,int number,BigDecimal price,BigDecimal win_price);
     @Update("update orders set id_product = #{id_product},product_category = #{product_category} where id = #{id}")
         void ChangeProduct(Long id,Long id_product, Long product_category);
+    @Update("update orders set comment = #{comment}, id_product = #{id_product},product_category = #{product_category} where id = #{id}")
+    void ChangeProductFromFile(Long id,Long id_product, Long product_category, String comment);
     @Select("Select id from orders where id_product = #{id_product} and product_category = #{product_category}")
         List<Long> findAllOrdersIdbyProduct(Long id_product, Long product_category);
     @Delete("Delete from orders where id = #{id}")
@@ -301,12 +340,12 @@ public interface TableMapper {
     @Select("SELECT " + atributTender +
             "        FROM keysight.tender left join customer c on c.id = tender.customer left join typetender t on t.id = tender.typetender left join winner w on w.id = tender.winner right join orders o on tender.id = o.tender left join country on c.country = country.id where o.product_category = 7 and o.id_product = 255")
     List<Tender> findTendernoDocumentation();
-    @Select("SELECT count(*) as count, sum(sum) as sum, #{year} as year, #{NumberQuarter} as quarter from (Select distinct tender.id, tender.sum as sum from keysight.tender join keysight.orders on orders.tender = tender.id where ${dateRange} and product_category = #{category}  ${tenders}) as c")
-        ReportQuarter findForOrders(int year,int NumberQuarter ,String dateRange, Long category, String tenders);
-    @Select("SELECT name from (Select distinct tender.id, vendor.name as name from keysight.tender join keysight.orders on orders.tender = tender.id left join ${category_en} as prod on prod.id = orders.id_product left join vendor on  prod.vendor = vendor.id where ${dateRange} and product_category = #{category} ${tenders}) as c ")
-        List<String> findVendorForOrders( String dateRange, Long category, String category_en, String tenders);
-    @Select("SELECT trim(name) from (Select distinct tender.id, orders.comment as name from keysight.tender join keysight.orders on orders.tender = tender.id left join ${category_en} as prod on prod.id = orders.id_product where ${dateRange} and product_category = #{category} and prod.vendor = 1 ${tenders}) as c")
-        List<String> findNoVendorForOrders(String dateRange, Long category, String category_en, String tenders);
+    @Select("SELECT count(*) as count, sum(sum) as sum, #{year} as year, #{NumberQuarter} as quarter from (Select distinct tender.id, tender.sum as sum from keysight.tender join keysight.orders on orders.tender = tender.id where ${dateRange} and ${category}  ${tenders}) as c")
+        ReportQuarter findForOrders(int year,int NumberQuarter ,String dateRange, String category, String tenders);
+    @Select("SELECT name from (Select distinct tender.id, vendor.name as name from keysight.tender join keysight.orders on orders.tender = tender.id left join ${category_en} as prod on prod.id = orders.id_product left join vendor on  prod.vendor = vendor.id where ${dateRange} and ${category} ${tenders}) as c ")
+        List<String> findVendorForOrders( String dateRange, String category, String category_en, String tenders);
+    @Select("SELECT trim(name) from (Select distinct tender.id, orders.comment as name from keysight.tender join keysight.orders on orders.tender = tender.id left join ${category_en} as prod on prod.id = orders.id_product where ${dateRange} and ${category} and prod.vendor = 1 ${tenders}) as c")
+        List<String> findNoVendorForOrders(String dateRange, String category, String category_en, String tenders);
     @Select("SELECT " +atributTender +
             " FROM keysight.tender left join customer c on c.id = tender.customer left join typetender t on t.id = tender.typetender left join winner w on w.id = tender.winner  left join orders o on tender.id = o.tender left join country on c.country = country.id WHERE o.id_product like #{product} and  o.product_category = #{category} and (date_start between #{dateStart} and #{dateFinish})"
             )
@@ -315,6 +354,11 @@ public interface TableMapper {
         List<Long> findTenderByCategory(Long category);
     @Select("Select tender from orders where ${where}")
         List<Long> findTenderByProduct(String where);
+    @Select("SELECT customer.name as name,count(*) as count FROM tender left join customer on tender.customer=customer.id where ${dateRange} ${tenders} group by tender.customer ;")
+        List<ReportCompany> CustomerForOrders(String dateRange, String tenders);
+    @Select("SELECT winner.name as name,count(*) as count FROM tender left join winner on tender.winner=winner.id where ${dateRange} ${tenders} group by tender.winner ;")
+    List<ReportCompany> WinnerForOrders(String dateRange, String tenders);
+
 ///////////////////////////////////////////////////////////
 //              Universal SQL
 ///////////////////////////////////////////////////////////
@@ -325,7 +369,9 @@ public interface TableMapper {
     @Select("${select}")
     List <Product> findListProduct(String select);
     @Select("${select}")
-    Product findOneProduct(String select);
+        Product findOneProduct(String select);
+    @Select("${select}")
+        Long findIdProduct(String select);
     @Insert("${insert} ")
     void InsertProduct(String insert);
     @Update("${update} limit 1")
@@ -338,16 +384,42 @@ public interface TableMapper {
         Long findOneUniversalById(Long id, String category);
     @Select("Select id from ${category} where vendor = #{vendor}")
         List<Long> findProductByVendor(String category, Long vendor);
-
+    @Select("${query}")
+    List<Map<Object,Object>> selectQuery(String query);
 ///////////////////////////////////////////////////////////
 //              User SQL
 ///////////////////////////////////////////////////////////
     @Select("Select * from usr where username = #{username} limit 1")
         User findUserByUserName(String username);
+    @Select("Select * from usr where nickname = #{nickname} limit 1")
+        User findUserByNickname(String nickname);
     @Insert("Insert into usr (username, role, activationCode) values (#{username}, #{role}, #{activationCode})")
         void insertUser(String username, String role, String activationCode);
     @Update("Update usr set password = #{password}, activationCode='' where id = #{id}")
         void updatePassword(String password, Long id);
-    @Select("Select username,role,activationCode from usr")
+    @Update("Update usr set nickname = #{nickname} where id = #{id}")
+    void updateNickName(String nickname, Long id);
+    @Select("Select username,role,activationCode,nickname from usr")
     List<User> findAllUsers();
+    @Select("Select username from usr where id=#{id}")
+    String findUserById(Long id);
+    @Select("Select id,nickname,role from usr where password is NOT NULL")
+    List<User> findUsers();
+///////////////////////////////////////////////////////////
+//              Comment SQL
+///////////////////////////////////////////////////////////
+    @Select("Select comment.id,comment.text, comment.usr, usr.nickname as user, comment.date from comment left join usr on comment.usr = usr.id where tender = #{tender} order by date DESC")
+        List<Comment> findAllCommentsByTender(Long tender);
+    @Insert("Insert into comment (text,usr,date,tender) values (#{text},#{usr},#{date},#{tender})")
+        void insertComment(String text, Long usr, ZonedDateTime date, Long tender);
+    @Select("SELECT count(*) as count FROM keysight.comment WHERE tender=#{tender}")
+    Long CountCommentByTender(Long tender);
+
+///////////////////////////////////////////////////////////
+//              Buffer SQL
+///////////////////////////////////////////////////////////
+    @Update("Update buffer set buf = #{buf} where id = #{id}")
+    void upadateBuffer(String buf, Long id);
+    @Select("Select buf from buffer where id = #{id}")
+    String SelectBuf(Long id);
 }

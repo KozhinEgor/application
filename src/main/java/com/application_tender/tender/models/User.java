@@ -18,6 +18,9 @@ public class User implements UserDetails {
     private UserRole role;
 
     private String activationCode;
+
+    private String nickname;
+
     public User() {
     }
 
@@ -69,6 +72,15 @@ public class User implements UserDetails {
     }
 
 
+
+    public String getNickname() {
+        return nickname;
+    }
+
+    public void setNickname(String nickname) {
+        this.nickname = nickname;
+    }
+
     @Override
     public boolean isAccountNonExpired() {
         return true;
@@ -95,7 +107,9 @@ public class User implements UserDetails {
                 "id=" + id +
                 ", username='" + username + '\'' +
                 ", password='" + password + '\'' +
-                ", role=" + role.name() +
+                ", role=" + role +
+                ", activationCode='" + activationCode + '\'' +
+                ", nickname='" + nickname + '\'' +
                 '}';
     }
 }

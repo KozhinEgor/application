@@ -7,6 +7,7 @@ public class ProductReceived {
     private Product vendor_code;
     private ProductCategory category;
     private Vendor vendor;
+    private BigCategory big_category;
 
     public Product getVendor_code() {
         return vendor_code;
@@ -20,12 +21,17 @@ public class ProductReceived {
         return vendor;
     }
 
+    public BigCategory getBig_category() {
+        return big_category;
+    }
+
     @Override
     public String toString() {
         return "ProductReceived{" +
                 "vendor_code=" + vendor_code +
                 ", category=" + category +
                 ", vendor=" + vendor +
+                ", big_category=" + big_category +
                 '}';
     }
 }

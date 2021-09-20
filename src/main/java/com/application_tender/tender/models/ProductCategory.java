@@ -33,4 +33,13 @@ public class ProductCategory {
     public void setCategory_en(String category_en) {
         this.category_en = category_en;
     }
+
+    @Override
+    public String toString() {
+        return "ProductCategory{" +
+                "id=" + id +
+                ", category='" + category + '\'' +
+                ", category_en='" + category_en + '\'' +
+                '}';
+    }
 }

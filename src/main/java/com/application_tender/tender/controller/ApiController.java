@@ -3,8 +3,10 @@ package com.application_tender.tender.controller;
 
 import com.application_tender.tender.mapper.TableMapper;
 import com.application_tender.tender.models.*;
+import com.application_tender.tender.models.Comment;
 import com.application_tender.tender.service.Bicotender;
 import com.application_tender.tender.service.FileService;
+import com.application_tender.tender.service.MailSender;
 import com.application_tender.tender.service.ReportService;
 import com.application_tender.tender.subsidiaryModels.*;
 import org.apache.poi.common.usermodel.HyperlinkType;
@@ -42,6 +44,8 @@ public class ApiController {
 
 
     private final TableMapper tableMapper;
+    @Autowired
+    private MailSender mailSender;
     @Autowired
     private SearchAtribut searchAtribut;
     @Autowired
@@ -502,11 +506,67 @@ public class ApiController {
         return tenders;
     }
 
+    @RequestMapping(value = "/addProduct/{category}", method = RequestMethod.POST, consumes = {"multipart/form-data"})
+    @ResponseBody
+    Map<String, String> addProduct(@PathVariable Long category,MultipartFile excel) throws IOException, InvalidFormatException {
+
+
+        File temp = new File(pathname);
+
+        excel.transferTo(temp);
+        //InputStream ExcelFileToRead= new InputStreamReader(new FileInputStream(temp), "UTF-8");
+        XSSFWorkbook workbook = new XSSFWorkbook(temp);
+        XSSFSheet sheet = workbook.getSheetAt(0);
+        Map<String, String> a = new HashMap<>();
+        a.put("name","Загрузил");
+        ProductCategory productCategory = tableMapper.findCategoryById(category);
+        int count = 1;
+        while ( sheet.getRow(count) != null && sheet.getRow(count).getCell(1, Row.MissingCellPolicy.RETURN_BLANK_AS_NULL) != null ) {
+            XSSFRow row = sheet.getRow(count);
+            if(row.getCell(0).getNumericCellValue() != 1){
+                String vendor_code = row.getCell(2).toString().substring(row.getCell(2).toString().indexOf(" ")).trim();
+                if(tableMapper.findIdProduct("Select id from " + productCategory.getCategory_en() + " where vendor_code ='" + vendor_code + "'") == null){
+                    tableMapper.InsertProduct("Insert into " + productCategory.getCategory_en() + "(vendor_code,vendor) values ('" + vendor_code + "'" + ",'" + searchAtribut.findVendor(row.getCell(2).toString().substring(0,row.getCell(2).toString().indexOf(" "))) + "')");
+                }
+                Long id = tableMapper.findIdProduct("Select id from " + productCategory.getCategory_en() + " where vendor_code ='" + vendor_code + "'");
+                for(String id_order_string : row.getCell(3).getStringCellValue().trim().split(" ")){
+
+                    Long id_order = Long.valueOf(id_order_string);
+                    if(id_order>21525){
+                        count++;
+                        continue;
+                    }
+                    tableMapper.ChangeProductFromFile(id_order,id,category,"");
+                    searchAtribut.UpdateProductTender(tableMapper.findTenderIdbyId(id_order));
+                }
+            }
+            else{
+                Long id_order = Long.valueOf(row.getCell(3).getStringCellValue().trim());
+                if(id_order>21525L){
+                    count++;
+                    continue;
+                }
+                tableMapper.ChangeProduct(id_order,1L,category);
+                searchAtribut.UpdateProductTender(tableMapper.findTenderIdbyId(id_order));
+            }
+
+            count++;
+        }
+
+        //ExcelFileToRead.close();
+
+        return a;
+    }
+
     @PostMapping("/loadTender")
     @ResponseBody
     List<Tender> loadTender(@RequestBody Long[] number) throws JSONException {
         LinkedList<Tender> tenders = new LinkedList<>();
-
+        String buf = "";
+        for(Long num : number){
+            buf = buf+num.toString() + " ";
+        }
+        tableMapper.upadateBuffer(buf.trim(),1L);
         for (Long num : number) {
             Long id;
             DateTimeFormatter formatCurrency = DateTimeFormatter.ofPattern("dd/MM/yyyy");
@@ -516,6 +576,9 @@ public class ApiController {
 
             } else {
                 JSONObject tender = bicotender.loadTender(num);
+                if(tender == null){
+                    return null;
+                }
                 ZonedDateTime dateStart = ZonedDateTime.parse(tender.get("loadTime").toString() + " Z", format_API_Bico).plusDays(1);
                 Map<String, Double> currency = new HashMap<>();
                 currency = getCurrency.currency(dateStart.format(formatCurrency));
@@ -543,23 +606,38 @@ public class ApiController {
             }
             tenders.add(tableMapper.findTenderbyId(id));
         }
+        tableMapper.upadateBuffer(null,1L);
         return tenders;
+    }
+
+    @GetMapping("/numberFromBuffer/{id}")
+    @ResponseBody
+    Map<String,String> numberFromBuffer(@PathVariable Long id){
+    Map<String,String> a = new HashMap<>();
+    a.put("name",tableMapper.SelectBuf(id));
+    return a;
     }
 
     @PostMapping("/loadTenderAdjacent")
     @ResponseBody
     List<Tender> loadTenderAdjacentr(@RequestBody Long[] number) throws JSONException {
         LinkedList<Tender> tenders = new LinkedList<>();
-
+        String buf = "";
+        for(Long num : number){
+            buf = buf+num.toString() + " ";
+        }
+        tableMapper.upadateBuffer(buf.trim(),2L);
         for (Long num : number) {
             Long id;
             DateTimeFormatter formatCurrency = DateTimeFormatter.ofPattern("dd/MM/yyyy");
             if (tableMapper.findAdjacentTenderByNumber_tender(num.toString()) != null) {
-
                 id = tableMapper.findAdjacentTenderByNumber_tender(num.toString());
 
             } else {
                 JSONObject tender = bicotender.loadTender(num);
+                if(tender == null){
+                    return null;
+                }
                 ZonedDateTime dateStart = ZonedDateTime.parse(tender.get("loadTime").toString() + " Z", format_API_Bico).plusDays(1);
                 Map<String, Double> currency = new HashMap<>();
                 currency = getCurrency.currency(dateStart.format(formatCurrency));
@@ -586,8 +664,10 @@ public class ApiController {
             }
             tenders.add(tableMapper.findAdjacentTenderbyId(id));
         }
+        tableMapper.upadateBuffer(null,2L);
         return tenders;
     }
+
     @GetMapping("/Vendor/{category}")
     @ResponseBody
     List<Vendor> Vendor(@PathVariable Long category) {
@@ -666,14 +746,24 @@ public class ApiController {
 
         return reportService.getQuartalTenderReport(category, json);
     }
+    @RequestMapping(path = "/quarterTenderBigCategory/{category}")
+    @ResponseBody
+    public ArrayList<ReportQuarter> getQuartalTenderReportBigCategory(@PathVariable Long category, @RequestBody ReceivedJSON json) {
 
+        return reportService.getQuartalTenderReportBigCategory(category, json);
+    }
     @RequestMapping(path = "/quarterVendor/{category}")
     @ResponseBody
     public ArrayList<ReportVendorQuarter> getQuartalVendorReport(@PathVariable Long category, @RequestBody ReceivedJSON json) {
 
         return reportService.getQuartalVendorReport(category, json);
     }
+    @RequestMapping(path = "/quarterVendorBigCategory/{category}")
+    @ResponseBody
+    public ArrayList<ReportVendorQuarter> getQuartalVendorReportBigCategory(@PathVariable Long category, @RequestBody ReceivedJSON json) {
 
+        return reportService.getQuartalVendorReportBigCategory(category, json);
+    }
     @RequestMapping(path = "/quarterNoVendor/{category}")
     @ResponseBody
     public ArrayList<ReportVendorQuarter> getQuartalNoVendorReport(@PathVariable Long category, @RequestBody ReceivedJSON json) {
@@ -681,6 +771,25 @@ public class ApiController {
         return reportService.getQuartalNoVendorReport(category, json);
     }
 
+    @RequestMapping(path = "/quarterNoVendorBigCategory/{category}")
+    @ResponseBody
+    public ArrayList<ReportVendorQuarter> getQuartalNoVendorReportBigCategory(@PathVariable Long category, @RequestBody ReceivedJSON json) {
+
+        return reportService.getQuartalNoVendorReportBigCategory(category, json);
+    }
+
+    @RequestMapping(path = "/quarterCustomer/{company}")
+    @ResponseBody
+    public ArrayList<ReportVendorQuarter> getQuartalCustomerReport(@PathVariable Long company, @RequestBody ReceivedJSON json) {
+
+        return reportService.getQuartalCustomerReport(company, json);
+    }
+    @RequestMapping(path = "/getQuartal")
+    @ResponseBody
+    public List<String> getQuartal( @RequestBody ReceivedJSON json) {
+
+        return reportService.getQuartal(json);
+    }
     @PostMapping("/FileReport")
     @ResponseBody
     ResponseEntity<Resource> downloadFileReport(@RequestBody ReceivedJSON json) throws IOException {
@@ -902,7 +1011,7 @@ public class ApiController {
     @ResponseBody
     Tender saveAdjacentTender(@RequestBody Tender tender) {
         tableMapper.UpdateAdjacentTender(tender.getId(), tender.getName_tender(), tender.getBico_tender(), tender.getGos_zakupki(), tender.getDate_start(), tender.getDate_finish(), tender.getDate_tranding(), tender.getNumber_tender(), tender.getFull_sum(), tender.getCurrency(), tender.getPrice(), tender.getRate(), tender.getPrice().multiply(BigDecimal.valueOf(tender.getRate())), Long.valueOf(tender.getCustomer()), Long.valueOf(tender.getTypetender()), tender.isDublicate());
-        return tableMapper.findTenderbyId(tender.getId());
+        return tableMapper.findAdjacentTenderbyId(tender.getId());
     }
     @GetMapping("/TenderByID/{id}")
     @ResponseBody
@@ -945,7 +1054,7 @@ public class ApiController {
     }
 
 
-    @PostMapping("/File")
+    @PostMapping("/FileTender")
     @ResponseBody
     ResponseEntity<Resource> downloadFile(@RequestBody ReceivedJSON json) throws IOException {
         List<Tender> tenders = tableMapper.findAllTenderTerms(searchAtribut.findTenderByTerms(json));
@@ -1131,6 +1240,199 @@ public class ApiController {
             row.createCell(17).setCellValue(tender.getWin_sum().doubleValue());
             row.getCell(17).setCellStyle(price);
             row.getCell(17).setCellType(CellType.NUMERIC);
+        }
+        File file = new File(pathname);
+        FileOutputStream fileOutputStream = new FileOutputStream(file);
+        workbook.write(fileOutputStream);
+        fileOutputStream.close();
+        Resource file1 = fileService.download("temp.xlsx");
+        Path path = file1.getFile()
+                .toPath();
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_TYPE, Files.probeContentType(path))
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + file1.getFilename() + "\"")
+                .body(file1);
+    }
+
+    @PostMapping("/FileAdjacentTender")
+    @ResponseBody
+    ResponseEntity<Resource> downloadFileAdjacentTender(@RequestBody ReceivedJSON json) throws IOException {
+        List<Tender> tenders = tableMapper.findAllAdjacentTenderTerms(searchAtribut.findTenderByTerms(json));
+        XSSFWorkbook workbook = new XSSFWorkbook();
+        CreationHelper createHelper = workbook.getCreationHelper();
+        XSSFSheet sheet = workbook.createSheet("Станица");
+        XSSFColor colorborder = new XSSFColor(new java.awt.Color(0, 90, 170));
+
+        XSSFCellStyle hlinkstyle = workbook.createCellStyle();
+        XSSFFont hlinkfont = workbook.createFont();
+        hlinkfont.setUnderline(XSSFFont.U_SINGLE);
+        hlinkfont.setColor(new XSSFColor(new java.awt.Color(30, 144, 255)));
+        hlinkstyle.setFont(hlinkfont);
+        hlinkstyle.setWrapText(true);
+        hlinkstyle.setBorderTop(BorderStyle.THIN);
+        hlinkstyle.setBorderColor(XSSFCellBorder.BorderSide.TOP, colorborder);
+        hlinkstyle.setBorderRight(BorderStyle.THIN);
+        hlinkstyle.setBorderColor(XSSFCellBorder.BorderSide.RIGHT, colorborder);
+        hlinkstyle.setBorderBottom(BorderStyle.THIN);
+        hlinkstyle.setBorderColor(XSSFCellBorder.BorderSide.BOTTOM, colorborder);
+        hlinkstyle.setBorderLeft(BorderStyle.THIN);
+        hlinkstyle.setBorderColor(XSSFCellBorder.BorderSide.LEFT, colorborder);
+
+        XSSFCellStyle body = workbook.createCellStyle();
+        body.setBorderTop(BorderStyle.THIN);
+        body.setBorderColor(XSSFCellBorder.BorderSide.TOP, colorborder);
+        body.setBorderRight(BorderStyle.THIN);
+        body.setBorderColor(XSSFCellBorder.BorderSide.RIGHT, colorborder);
+        body.setBorderBottom(BorderStyle.THIN);
+        body.setBorderColor(XSSFCellBorder.BorderSide.BOTTOM, colorborder);
+        body.setBorderLeft(BorderStyle.THIN);
+        body.setBorderColor(XSSFCellBorder.BorderSide.LEFT, colorborder);
+        body.setWrapText(true);
+
+        XSSFCellStyle header = workbook.createCellStyle();
+        header.setFillForegroundColor(new XSSFColor(new java.awt.Color(0, 102, 204)));
+        header.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+        XSSFFont headerFont = workbook.createFont();
+        headerFont.setColor(new XSSFColor(new java.awt.Color(255, 255, 255)));
+        header.setFont(headerFont);
+
+        XSSFCellStyle price = workbook.createCellStyle();
+        price.setBorderTop(BorderStyle.THIN);
+        price.setBorderColor(XSSFCellBorder.BorderSide.TOP, colorborder);
+        price.setBorderRight(BorderStyle.THIN);
+        price.setBorderColor(XSSFCellBorder.BorderSide.RIGHT, colorborder);
+        price.setBorderBottom(BorderStyle.THIN);
+        price.setBorderColor(XSSFCellBorder.BorderSide.BOTTOM, colorborder);
+        price.setBorderLeft(BorderStyle.THIN);
+        price.setBorderColor(XSSFCellBorder.BorderSide.LEFT, colorborder);
+        price.setDataFormat(createHelper.createDataFormat().getFormat("#,##0.00"));
+
+
+        XSSFCellStyle cellStyle = workbook.createCellStyle();
+        XSSFDataFormat dateFormat = (XSSFDataFormat) workbook.createDataFormat();
+        cellStyle.setDataFormat(dateFormat.getFormat("dd.MM.yyyy HH:mm:ss"));
+//       cellStyle.setDataFormat(
+//               createHelper.createDataFormat().getFormat("dd.MM.yyyy HH:mm:ss"));
+        // cellStyle.setWrapText(true);
+        cellStyle.setBorderTop(BorderStyle.THIN);
+        cellStyle.setBorderColor(XSSFCellBorder.BorderSide.TOP, colorborder);
+        cellStyle.setBorderRight(BorderStyle.THIN);
+        cellStyle.setBorderColor(XSSFCellBorder.BorderSide.RIGHT, colorborder);
+        cellStyle.setBorderBottom(BorderStyle.THIN);
+        cellStyle.setBorderColor(XSSFCellBorder.BorderSide.BOTTOM, colorborder);
+        cellStyle.setBorderLeft(BorderStyle.THIN);
+        cellStyle.setBorderColor(XSSFCellBorder.BorderSide.LEFT, colorborder);
+        int numberRow = 0;
+        XSSFRow row = sheet.createRow(numberRow);
+        sheet.setColumnWidth(0, 39 * 256);
+        sheet.setColumnWidth(1, 14 * 256);
+        sheet.setColumnWidth(2, 14 * 256);
+        sheet.setColumnWidth(3, 50 * 256);
+        sheet.setColumnWidth(4, 39 * 256);
+        sheet.setColumnWidth(5, 13 * 256);
+        sheet.setColumnWidth(6, 14 * 256);
+        sheet.setColumnWidth(7, 17 * 256);
+        sheet.setColumnWidth(8, 5 * 256);
+        sheet.setColumnWidth(9, 5 * 256);
+        sheet.setColumnWidth(10, 20 * 256);
+        sheet.setColumnWidth(11, 20 * 256);
+        sheet.setColumnWidth(12, 12 * 256);
+        sheet.setColumnWidth(13, 12 * 256);
+        sheet.setColumnWidth(14, 12 * 256);
+        sheet.setColumnWidth(15, 56 * 256);
+        sheet.setColumnWidth(16, 39 * 256);
+        sheet.setColumnWidth(17, 20 * 256);
+        row.createCell(0).setCellValue("Заказчик");
+        row.getCell(0).setCellStyle(header);
+        row.createCell(1).setCellValue("ИН");
+        row.getCell(1).setCellStyle(header);
+        row.createCell(2).setCellValue("Страна");
+        row.getCell(2).setCellStyle(header);
+        row.createCell(3).setCellValue("Название");
+        row.getCell(3).setCellStyle(header);
+        row.createCell(4).setCellValue("Госзакупки");
+        row.getCell(4).setCellStyle(header);
+        row.createCell(5).setCellValue("Тип тендера");
+        row.getCell(5).setCellStyle(header);
+        row.createCell(6).setCellValue("Номер");
+        row.getCell(6).setCellStyle(header);
+        row.createCell(7).setCellValue("Цена");
+        row.getCell(7).setCellStyle(header);
+        row.createCell(8).setCellValue("Валюта");
+        row.getCell(8).setCellStyle(header);
+        row.createCell(9).setCellValue("Курс");
+        row.getCell(9).setCellStyle(header);
+        row.createCell(10).setCellValue("Сумма");
+        row.getCell(10).setCellStyle(header);
+        row.createCell(11).setCellValue("Полная сумма");
+        row.getCell(11).setCellStyle(header);
+        row.createCell(12).setCellValue("Начало показа");
+        row.getCell(12).setCellStyle(header);
+        row.createCell(13).setCellValue("Окончание показа");
+        row.getCell(13).setCellStyle(header);
+        row.createCell(14).setCellValue("Дата торгов");
+        row.getCell(14).setCellStyle(header);
+        row.createCell(15).setCellValue("Продукты");
+        row.getCell(15).setCellStyle(header);
+        row.createCell(16).setCellValue("Победитель");
+        row.getCell(16).setCellStyle(header);
+        row.createCell(17).setCellValue("Сумма победителя");
+        row.getCell(17).setCellStyle(header);
+        for (Tender tender : tenders) {
+            numberRow += 1;
+            row = sheet.createRow(numberRow);
+            row.setHeight((short) -1);
+            row.createCell(0).setCellValue(tender.getCustomer());
+            row.getCell(0).setCellStyle(body);
+            row.createCell(1).setCellValue(tender.getInn());
+            row.getCell(1).setCellStyle(body);
+            row.createCell(2).setCellValue(tender.getCountry());
+            row.getCell(2).setCellStyle(body);
+
+            row.createCell(3).setCellValue(tender.getName_tender());
+            XSSFHyperlink link = (XSSFHyperlink) createHelper.createHyperlink(HyperlinkType.URL);
+            link.setAddress(tender.getBico_tender());
+            row.getCell(0).setCellStyle(body);
+            row.getCell(3).setHyperlink((XSSFHyperlink) link);
+            row.getCell(3).setCellStyle(hlinkstyle);
+            XSSFHyperlink linkGos = (XSSFHyperlink) createHelper.createHyperlink(HyperlinkType.URL);
+            linkGos.setAddress(tender.getGos_zakupki());
+            row.createCell(4).setHyperlink((XSSFHyperlink) linkGos);
+            row.getCell(4).setCellValue(tender.getGos_zakupki());
+            row.getCell(4).setCellStyle(hlinkstyle);
+            row.createCell(5).setCellValue(tender.getTypetender());
+            row.getCell(5).setCellStyle(body);
+            row.createCell(6).setCellValue(tender.getNumber_tender());
+            row.getCell(6).setCellStyle(body);
+            row.createCell(7).setCellValue(tender.getPrice().doubleValue());
+            row.getCell(7).setCellStyle(price);
+            row.getCell(7).setCellType(CellType.NUMERIC);
+            row.createCell(8).setCellValue(tender.getCurrency());
+            row.getCell(8).setCellStyle(body);
+            row.createCell(9).setCellValue(tender.getRate());
+            row.getCell(9).setCellStyle(body);
+            row.getCell(9).setCellType(CellType.NUMERIC);
+            row.createCell(10).setCellValue(tender.getSum().doubleValue());
+            row.getCell(10).setCellStyle(price);
+            row.getCell(10).setCellType(CellType.NUMERIC);
+            row.createCell(11).setCellValue(tender.getFull_sum().doubleValue());
+            row.getCell(11).setCellStyle(price);
+            row.getCell(11).setCellType(CellType.NUMERIC);
+            row.createCell(12).setCellStyle(body);
+
+            row.getCell(12).setCellValue(tender.getDate_start().toLocalDateTime().format(format_dateFile));
+
+            row.createCell(13).setCellValue(tender.getDate_finish().toLocalDateTime().format(format_dateFile));
+            row.getCell(13).setCellStyle(body);
+
+            if (tender.getDate_tranding() != null) {
+                row.createCell(14).setCellValue(tender.getDate_tranding().toLocalDateTime().format(format_dateFile));
+                row.getCell(14).setCellStyle(body);
+
+            } else {
+                row.createCell(14).setCellValue("");
+                row.getCell(14).setCellStyle(body);
+            }
         }
         File file = new File(pathname);
         FileOutputStream fileOutputStream = new FileOutputStream(file);
@@ -1452,22 +1754,11 @@ public class ApiController {
         return a;
     }
 
-    @PostMapping(path = "/Test")
+    @GetMapping(path = "/Test")
     @ResponseBody
-    Map<String, String> Test(@RequestBody ReceivedJSON json) throws JSONException {
-        List<ProductCategory> productCategories = tableMapper.findAllProductCategory();
-        for (ProductCategory productCategory : productCategories) {
-            if (!productCategory.getCategory().equals("Продукты")) {
-                ArrayList<ReportQuarter> reportVendorQuarter = this.reportService.getQuartalTenderReport(productCategory.getId(), json);
-                if (reportVendorQuarter.size() != 0) {
-                    System.out.println(reportVendorQuarter.get(0).toString());
-                }
-            }
-        }
-        HashMap<String, String> a = new HashMap<>();
+    List<Tender> Test() throws JSONException {
 
-        a.put("name", "good");
-        return a;
+        return null;
     }
 
     @GetMapping(path = "/Log")
@@ -1483,7 +1774,7 @@ public class ApiController {
             }
         } catch (IOException ex) {
 
-            System.out.println(ex.getMessage());
+//            System.out.println(ex.getMessage());
         }
         a.put("name", answear);
         return a;
@@ -1497,14 +1788,162 @@ public class ApiController {
         List<Long> customers = tableMapper.CustomersZeroINN();
         for (Long customer : customers) {
             String Bico = tableMapper.BicoNumberbyCustomer(customer);
-            JSONObject tender = bicotender.loadTender(Long.valueOf(Bico));
-            JSONObject company = new JSONObject(tender.get("company").toString());
-            if (!company.get("inn").toString().equals("null")) {
-                tableMapper.updateCustomerInnAndCountry(company.get("inn").toString(), customer);
-                a.put(customer.toString(),company.get("inn").toString());
+            try{
+                JSONObject tender = bicotender.loadTender(Long.valueOf(Bico.trim()));
+                try{JSONObject company = new JSONObject(tender.get("company").toString());
+                    if (!company.get("inn").toString().equals("null")) {
+                        tableMapper.updateCustomerInnAndCountry(company.get("inn").toString(), customer);
+                        a.put(customer.toString(),company.get("inn").toString());
+                    }
+                }
+                catch (JSONException e ){
+                    a.put(customer.toString(),e.getMessage()+"  company");
+                }
+
+
             }
+            catch (Exception e) {
+                a.put(customer.toString(),e.getMessage());
+            }
+
         }
         return a;
 }
+
+    @PostMapping(path = "/SelectQuery")
+    @ResponseBody
+    List<Map<Object,Object>> SelectQuery(@RequestBody String query) throws JSONException {
+        return tableMapper.selectQuery(query);
+    }
+
+    @GetMapping(path = "/SynonymsProduct")
+    @ResponseBody
+    List<SynonymsProduct> SynonymsProduct() {
+        return tableMapper.findAllSynonymsProduct();
+    }
+
+    @PostMapping(path = "/ChangeSynonymsProduct")
+    @ResponseBody
+    List<SynonymsProduct> ChangeSynonymsProduct(@RequestBody SynonymsProduct synonymsProduct){
+        if(synonymsProduct.getId() != null){
+            tableMapper.UpdateSynonymsProduct(synonymsProduct.getId(),synonymsProduct.getId_category(),synonymsProduct.getSynonyms());
+        }
+        else{
+            tableMapper.InsertSynonymsProduct(synonymsProduct.getId_category(),synonymsProduct.getSynonyms());
+        }
+        return tableMapper.findAllSynonymsProduct();
+    }
+
+    @GetMapping(path = "/BigCategory")
+    @ResponseBody
+    List<BigCategory> BigCategory() {
+        List<BigCategory> bigCategory = new LinkedList<>();
+        List<Long> ids = tableMapper.findAllBigCategory();
+        if(ids != null){
+            for(Long id :ids){
+                bigCategory.add(searchAtribut.makeBigCategory(id));
+            }
+        }
+
+        return bigCategory;
+    }
+
+    @PostMapping(path = "/ChangeBigCategory")
+    @ResponseBody
+    List<BigCategory> ChangeBigCategory(@RequestBody BigCategory big){
+
+        if(big.getBig_category_id() != null){
+            boolean flag = false;
+            List<Long> productCategorys = tableMapper.findCategorybyBigCategory(big.getBig_category_id());
+            List<Long> webIds = new LinkedList<>();
+            for(ProductCategory productCategory : big.getCategory()){
+                webIds.add(productCategory.getId());
+                if(!productCategorys.contains(productCategory.getId())){
+                    tableMapper.InsertBig_category_dependencies(big.getBig_category_id(),productCategory.getId());
+                }
+            }
+            for(Long id : productCategorys){
+                if(!webIds.contains(id)){
+                tableMapper.DeleteBig_category_dependencies(big.getBig_category_id(),id);
+                }
+            }
+        }
+        else{
+            tableMapper.InsertBigCategory(big.getBig_category());
+            Long bigCategoryId = tableMapper.findBigCategorybyName(big.getBig_category());
+            for(ProductCategory productCategory: big.getCategory()){
+                tableMapper.InsertBig_category_dependencies(bigCategoryId,productCategory.getId());
+            }
+        }
+
+        List<BigCategory> bigCategory = new LinkedList<>();
+        List<Long> ids = tableMapper.findAllBigCategory();
+        if(ids != null){
+            for(Long id :ids){
+                bigCategory.add(searchAtribut.makeBigCategory(id));
+            }
+        }
+
+        return bigCategory;
+    }
+
+    @GetMapping("/changeNameTender")
+    @ResponseBody
+    Map<String,String> changeNameTender() throws JSONException {
+        List<Tender> tenders = tableMapper.findNameTenderByDate();
+        String result = "";
+        for(Tender tender:tenders){
+//            System.out.println(Long.valueOf(tender.getNumber_tender().trim()));
+            JSONObject tender_bico = bicotender.loadTender(Long.valueOf(tender.getNumber_tender().trim()));
+//            System.out.println(tender_bico);
+            if(!tender.getName_tender().equals(tender_bico.get("name").toString())){
+                tableMapper.changeNameTender(tender.getId(),tender_bico.get("name").toString());
+                System.out.println(tender.getId());
+                result = result+ tender.getId()+" ";
+            }
+        }
+        HashMap<String, String> a = new HashMap<>();
+        a.put("change:",result);
+        return a;
+    }
+
+    @GetMapping("/getAllUsers")
+    @ResponseBody
+    List<User> getAllUsers() {
+
+        return tableMapper.findUsers();
+    }
+
+    @GetMapping("/getCommentsByTender/{tender}")
+    @ResponseBody
+    List<Comment> getCommentsByTender(@PathVariable Long tender) {
+
+        return tableMapper.findAllCommentsByTender(tender);
+    }
+
+    @PostMapping(path = "/postComment")
+    @ResponseBody
+    List<Comment> PostComment(@RequestBody Comment comment){
+        for(Long id: comment.getUsers()){
+            String mail = tableMapper.findUserById(id);
+            String message = comment.getText();
+            try {
+                mailSender.send(mail, "Добавлен комментарий в приложении \"Application Tender\" к тендеру " + comment.getTender(), message);
+                }
+            catch (Exception e){
+                System.out.println(e.toString());
+            }
+            }
+        comment.setDate(ZonedDateTime.now().plusHours(3));
+        tableMapper.insertComment(comment.getText(),comment.getUsr(),comment.getDate(),comment.getTender());
+        return tableMapper.findAllCommentsByTender(comment.getTender());
+    }
+
+    @GetMapping("/CountCommentByTender/{tender}")
+    @ResponseBody
+    Long CountCommentByTender(@PathVariable Long tender) {
+
+        return tableMapper.CountCommentByTender(tender);
+    }
 }
 

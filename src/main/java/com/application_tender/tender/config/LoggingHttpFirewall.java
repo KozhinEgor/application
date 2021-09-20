@@ -36,7 +36,7 @@ public final class LoggingHttpFirewall extends StrictHttpFirewall {
             return super.getFirewalledRequest(request);
         } catch (RequestRejectedException ex) {
 
-            System.out.println("Intercepted RequestBlockedException: Remote Host: " + request.getRemoteHost() + " User Agent: " + request.getHeader("User-Agent") + " Request URL: " + request.getRequestURL().toString());
+//            System.out.println("Intercepted RequestBlockedException: Remote Host: " + request.getRemoteHost() + " User Agent: " + request.getHeader("User-Agent") + " Request URL: " + request.getRequestURL().toString());
 
 
             // Wrap in a new RequestRejectedException with request metadata and a shallower stack trace.

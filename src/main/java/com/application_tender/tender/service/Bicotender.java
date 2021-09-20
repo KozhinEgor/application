@@ -1,9 +1,13 @@
 package com.application_tender.tender.service;
 
+import org.json.JSONException;
 import org.json.JSONObject;
 import org.apache.commons.httpclient.HttpClient;
 import org.apache.commons.httpclient.methods.GetMethod;
 import org.springframework.stereotype.Service;
+
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 
 @Service
 public class Bicotender {
@@ -24,12 +28,18 @@ public class Bicotender {
             int statusCode = client.executeMethod(method);
 
             if (statusCode != -1) {
-                in = method.getResponseBodyAsString();
+                InputStream str = method.getResponseBodyAsStream();
+                in = new String(str.readAllBytes(), StandardCharsets.US_ASCII);
+
             }
 
             assert in != null;
-
-            ob = new JSONObject(in);
+            try {
+                ob = new JSONObject(in);
+            }
+            catch (JSONException e){
+                return null;
+            }
 
 
 
