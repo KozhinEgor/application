@@ -3,35 +3,63 @@ package com.application_tender.tender.subsidiaryModels;
 import com.application_tender.tender.models.ProductCategory;
 import com.application_tender.tender.models.Vendor;
 
-public class ProductReceived {
-    private Product vendor_code;
-    private ProductCategory category;
-    private Vendor vendor;
-    private BigCategory big_category;
+import java.util.Arrays;
 
-    public Product getVendor_code() {
+public class ProductReceived {
+    private Product[] vendor_code;
+    private ProductCategory[] category;
+    private Vendor[] vendor;
+    private String[] subcategory;
+    private String category_product;
+
+    public Product[] getVendor_code() {
         return vendor_code;
     }
 
-    public ProductCategory getCategory() {
+    public void setVendor_code(Product[] vendor_code) {
+        this.vendor_code = vendor_code;
+    }
+
+    public ProductCategory[] getCategory() {
         return category;
     }
 
-    public Vendor getVendor() {
+    public void setCategory(ProductCategory[] category) {
+        this.category = category;
+    }
+
+    public Vendor[] getVendor() {
         return vendor;
     }
 
-    public BigCategory getBig_category() {
-        return big_category;
+    public void setVendor(Vendor[] vendor) {
+        this.vendor = vendor;
+    }
+
+    public String[] getSubcategory() {
+        return subcategory;
+    }
+
+    public void setSubcategory(String[] subcategory) {
+        this.subcategory = subcategory;
+    }
+
+    public String getCategory_product() {
+        return category_product;
+    }
+
+    public void setCategory_product(String category_product) {
+        this.category_product = category_product;
     }
 
     @Override
     public String toString() {
         return "ProductReceived{" +
-                "vendor_code=" + vendor_code +
-                ", category=" + category +
-                ", vendor=" + vendor +
-                ", big_category=" + big_category +
+                "vendor_code=" + Arrays.toString(vendor_code) +
+                ", category=" + Arrays.toString(category) +
+                ", vendor=" + Arrays.toString(vendor) +
+                ", subcategory=" + Arrays.toString(subcategory) +
+                ", category_product='" + category_product + '\'' +
                 '}';
     }
 }

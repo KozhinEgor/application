@@ -17,6 +17,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.Map;
+
 @RestController
 public class Authenticate {
     @Autowired
@@ -44,6 +46,19 @@ public class Authenticate {
             return ResponseEntity.ok(new AuthenticationResponse(jwt, userDetails.getUsername(), userDetails.getRole(),userDetails.getId(),userDetails.getNickname()));
         } else {
             return  ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("No users");
+        }
+    }
+    @RequestMapping(value = "/refreshJWT", method = RequestMethod.POST)
+    public ResponseEntity<?> refreshJWT(@RequestBody Map<String,String> username) throws Exception {
+        if (username != null) {
+            final User userDetails = userDetailsService.loadUserByUsername(username.get("username"));
+
+            final String jwt = jwtUtil.generateToken(userDetails);
+
+            return ResponseEntity.ok(new AuthenticationResponse(jwt, userDetails.getUsername(), userDetails.getRole(),userDetails.getId(),userDetails.getNickname()));
+        }
+        else {
+            return  ResponseEntity.status(500).build();
         }
     }
 

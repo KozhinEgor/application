@@ -9,6 +9,9 @@ import com.application_tender.tender.service.FileService;
 import com.application_tender.tender.service.MailSender;
 import com.application_tender.tender.service.ReportService;
 import com.application_tender.tender.subsidiaryModels.*;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import io.swagger.annotations.ApiOperation;
 import org.apache.poi.common.usermodel.HyperlinkType;
 import org.apache.poi.openxml4j.exceptions.InvalidFormatException;
 import org.apache.poi.ss.usermodel.*;
@@ -24,7 +27,10 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import springfox.documentation.spring.web.json.Json;
 
+import javax.json.bind.Jsonb;
+import javax.json.bind.JsonbBuilder;
 import java.io.*;
 import java.math.BigDecimal;
 import java.nio.file.Files;
@@ -54,6 +60,8 @@ public class ApiController {
     private String pathname;
     @Value("${file.log}")
     private String log;
+    @Value("${site.url}")
+    private String url;
     private final FileService fileService;
     private final ReportService reportService;
     private final Bicotender bicotender;
@@ -65,30 +73,35 @@ public class ApiController {
         this.bicotender = bicotender;
     }
 
+    @ApiOperation(value = "Возвращает список всех пользователей",  notes = "Производится запрос к БД и из таблицы Usr выбираются поля username,role,activationCode,nickname ")
     @GetMapping("/AllUsers")
     @ResponseBody
     List<User> allUsers() {
         return tableMapper.findAllUsers();
     }
-
+    @ApiOperation(value = "Возвращает список всех типов тендеров",  notes = "Производится запрос к БД и из таблицы typetender выбираются все поля ")
     @GetMapping("/TypeTender")
     @ResponseBody
     List<TypeTender> typeTender() {
         return tableMapper.findAllType();
     }
 
+    @ApiOperation(value = "Возвращает список всех Заказчиков",  notes = "Производится запрос к БД и из таблицы customer выбираются все поля, подтягивая название страны из таблицы country")
     @GetMapping("/Customer")
     @ResponseBody
     List<Company> customer() {
         return tableMapper.findAllCustomer();
     }
 
+    @ApiOperation(value = "Возвращает список всех Заказчиков которые не упоминаются в основных тендерах и в смежных",  notes = "Производится запрос к БД и из таблицы customer выбираются все поля, подтягивая название страны из таблицы country" +
+            "При условии того, что данный заказчик не упоминался в основных тендерах и не упоминался в смежных тендерах ")
     @GetMapping("/CustomerNoUses")
     @ResponseBody
     List<Company> customerNoUses() {
         return tableMapper.findAllCustomerNoUses();
     }
 
+    @ApiOperation(value = "Возвращает список всех Заказчиков, которые не используются, после удаления тех которые не используются",  notes = "Вначале производит поиск неиспользующихся заказчиков, затем проходя по данному массиву удаляет каждый элемент, после чего возвращает списко заказчиков которые не используются")
     @GetMapping("/DeleteCustomerNoUses")
     @ResponseBody
     List<Company> deleteCustomerNoUses() {
@@ -100,6 +113,8 @@ public class ApiController {
         return tableMapper.findAllCustomerNoUses();
     }
 
+    @ApiOperation(value = "Добавляет нового заказчика или обнавляет существующий в БД, и возвращает код 200", notes = "Проверяет наличие id в Компании которая пришла, при наличии ID в компании производит обновление данных," +
+            "при отсутсвии ID, добавляет нового заказчика в БД")
     @PostMapping("/insertCustomer")
     @ResponseBody
     ResponseEntity insertCustomer(@RequestBody Company customer) {
@@ -111,6 +126,8 @@ public class ApiController {
         return ResponseEntity.ok().build();
     }
 
+    @ApiOperation(value = "Изменяет заказчика в тендерах и возвращает какого заказчика на кого заменил", notes = "Вначале находит все тендеры со \"старым\" заказчиком и запускает циклы обновляя информацию о тендере," +
+            " добавляя \"нового\" заказчика в основных и смежных тендерах, После чего формирует строку для врзвращение")
     @PostMapping("/ChangeCustomer")
     @ResponseBody
     Map<String, String> changeCustomer(@RequestBody ChangeCompany changeCompany) {
@@ -127,6 +144,7 @@ public class ApiController {
         return a;
     }
 
+    @ApiOperation(value = "Возвращает excel файл со списком всех заказчиков",  notes = "Выводится информация о всех заказчиков в excel файл")
     @GetMapping("/CustomerFile")
     @ResponseBody
     ResponseEntity<Resource> customerFile() throws IOException {
@@ -215,18 +233,22 @@ public class ApiController {
                 .body(file1);
     }
 
+    @ApiOperation(value = "Возвращает список всех Победителей",  notes = "Производится запрос к БД и из таблицы winner выбираются все поля, подтягивая название страны из таблицы country")
     @GetMapping("/Winner")
     @ResponseBody
     List<Company> winner() {
         return tableMapper.findAllWinner();
     }
 
+    @ApiOperation(value = "Возвращает список всех Победителей которые не упоминаются в основных тендерах",  notes = "Производится запрос к БД и из таблицы winner выбираются все поля, подтягивая название страны из таблицы country" +
+            "При условии того, что данный победитель не упоминался в основных тендерах ")
     @GetMapping("/WinnerNoUses")
     @ResponseBody
     List<Company> winnerNoUses() {
         return tableMapper.findAllWinnerNoUses();
     }
 
+    @ApiOperation(value = "Возвращает список всех Победителей, которые не используются, после удаления тех которые не используются",  notes = "Вначале производит поиск неиспользующихся победителей, затем проходя по данному массиву удаляет каждый элемент, после чего возвращает списко победителей которые не используются")
     @GetMapping("/DeleteWinnerNoUses")
     @ResponseBody
     List<Company> deleteWinnerNoUses() {
@@ -237,6 +259,8 @@ public class ApiController {
         return tableMapper.findAllWinnerNoUses();
     }
 
+    @ApiOperation(value = "Добавляет нового победителя или обнавляет существующий в БД, и возвращает код 200", notes = "Проверяет наличие id в Компании которая пришла, при наличии ID в компании производит обновление данных," +
+            "при отсутсвии ID, добавляет нового победителя в БД")
     @PostMapping("/insertWinner")
     @ResponseBody
     ResponseEntity insertWinner(@RequestBody Company winner) {
@@ -249,6 +273,8 @@ public class ApiController {
         return ResponseEntity.ok().build();
     }
 
+    @ApiOperation(value = "Изменяет Победителя в тендерах и возвращает какого победителя на кого заменил",notes = "Вначале находит все тендеры со \"старым\" победителем и запускает цикл обновляя информацию о тендере," +
+            " добавляя \"нового\" победителя в основных тендерах, После чего формирует строку для врзвращение")
     @PostMapping("/ChangeWinner")
     @ResponseBody
     Map<String, String> changeWinner(@RequestBody ChangeCompany changeCompany) {
@@ -261,6 +287,7 @@ public class ApiController {
         return a;
     }
 
+    @ApiOperation(value = "Возвращает excel файл со списком всех победителей",  notes = "Выводится информация о всех победителях в excel файл")
     @GetMapping("/WinnerFile")
     @ResponseBody
     ResponseEntity<Resource> winnerFile() throws IOException {
@@ -349,30 +376,35 @@ public class ApiController {
                 .body(file1);
     }
 
+    @ApiOperation(value = "Возвращает Информацию об основных тендерах по заданным условиям", notes = "Вначале закпускается функция формирующая условия поиска тендеров, после чего сформированная строка используется в запросе к БД")
     @PostMapping("/Tender")
     @ResponseBody
     List<Tender> Tender(@RequestBody ReceivedJSON json) {
         return tableMapper.findAllTenderTerms(searchAtribut.findTenderByTerms(json));
     }
 
+    @ApiOperation(value = "Возвращает Информацию о смежных тендерах по заданным условиям", notes = "Вначале закпускается функция формирующая условия поиска тендеров, после чего сформированная строка используется в запросе к БД")
     @PostMapping("/AdjacentTender")
     @ResponseBody
     List<Tender> AdjacentTender(@RequestBody ReceivedJSON json) {
         return tableMapper.findAllAdjacentTenderTerms(searchAtribut.findTenderByTerms(json));
     }
 
+    @ApiOperation(value = "НЕ ИСПОЛЬЗУЕТСЯ Возвращает Информацию о продуктах из Категории Продукты", notes = "Возвращает список всех продуктов из категории Продукты")
     @GetMapping("/AnotherProduct")
     @ResponseBody
     List<AnotherProduct> AnotherProduct() {
         return tableMapper.findAllAnotherProduct();
     }
 
+    @ApiOperation(value = "Возвращает список всех категорий продуктов", notes = "Выполняет запрос к БД и возвращает навзания и id всех категорий")
     @GetMapping("/ProductCategory")
     @ResponseBody
     List<ProductCategory> ProductCategory() {
         return tableMapper.findAllProductCategory();
     }
 
+    @ApiOperation(value = "Возвращает список продуктов из категории", notes = "Запускает функцию формирования запроса для выборки всех продуктов из категории по id ее в таблице product_category")
     @GetMapping("/VendorCode/{id}")
     @ResponseBody
     List<Product> Product(@PathVariable Long id) {
@@ -383,6 +415,7 @@ public class ApiController {
         }
     }
 
+    @ApiOperation(value = "Возвращает список продуктов из категории, которые не используются", notes = "Запускает функцию формирования запроса для выборки всех продуктов из категории по id ее в таблице product_category, при условии что данный продукт не упоминается в таблице orders")
     @GetMapping("/VendorCodeNoUses/{id}")
     @ResponseBody
     List<Product> ProductNoUses(@PathVariable Long id) {
@@ -391,6 +424,7 @@ public class ApiController {
 
     }
 
+    @ApiOperation(value = "Удаляет продукты из категории, которые не используются", notes = "Запускает функцию формирования запроса для выборки всех продуктов из категории по id ее в таблице product_category, при условии что данный продукт не упоминается в таблице orders, после чего проходит по данному массиву удаляя каждый элемент из БД")
     @GetMapping("/DeleteVendorCodeNoUses/{id}")
     @ResponseBody
     List<Product> DeleteProductNoUses(@PathVariable Long id) {
@@ -402,6 +436,7 @@ public class ApiController {
 
     }
 
+    @ApiOperation(value = "Возвращает информацию о продукте по Id его в категории И id категории", notes = "Функция которая возвращает информацию об одном продукте из определенной категории")
     @GetMapping("/VendorCodeById/{id}/{id_product}")
     @ResponseBody
     Product ProductById(@PathVariable Long id, @PathVariable Long id_product) {
@@ -412,6 +447,7 @@ public class ApiController {
 
     }
 
+    @ApiOperation(value = "Список продуктов в тендере по его id", notes = "Возвращает список продуктов в тендере, понятном пользователю")
     @GetMapping("/OrdersByTender/{tender}")
     @ResponseBody
     OrdersReceived OrdersByTender(@PathVariable Long tender) {
@@ -420,13 +456,34 @@ public class ApiController {
         for (OrdersDB orderDB : ordersDB) {
 
             Product product_id = searchAtribut.ProductToOrders(orderDB.getProduct_category(), orderDB.getId_product());
-
+            String comment = "";
+            if(product_id == null){
+                comment = ((orderDB.getOptions() != null && !orderDB.getOptions().equals("")?orderDB.getOptions() + " ":"")
+                        + (orderDB.getPortable() !=null && orderDB.getPortable() ? "портативный " : "")
+                        + (orderDB.getUsb() !=null && orderDB.getUsb()? "USB " : "")
+                        + (orderDB.getVxi() !=null && orderDB.getVxi()? "VXI " : "")
+                        + (orderDB.getFrequency() != null && orderDB.getFrequency() != 0 ?  orderDB.getFrequency() +  "ГГц " : "")
+                        + (orderDB.getChannel()!=null && orderDB.getChannel()!= 0? orderDB.getChannel()+  "кан. " : "")
+                        + (orderDB.getPort()!=null && orderDB.getPort() != 0? orderDB.getPort()+  "порта " : "")
+                        + (orderDB.getForm_factor() != null  && !orderDB.getForm_factor().equals("") ? orderDB.getForm_factor()+" ":"")
+                        + (orderDB.getPurpose() != null && !orderDB.getPurpose().equals("") ? orderDB.getPurpose() + " ":"")
+                        + (orderDB.getVoltage() != null && orderDB.getVoltage() != 0? orderDB.getVoltage()+"В ":"")
+                        + (orderDB.getCurrent() != null && orderDB.getCurrent() != 0? orderDB.getCurrent()+"А ":"")
+                        + orderDB.getComment());
+            }
+            else {
+                comment = ((orderDB.getOptions() != null && !orderDB.getOptions().equals("")?orderDB.getOptions() + " ":"")
+                        + orderDB.getComment());
+            }
             orders.add(new Orders(orderDB.getTender(),
                     tableMapper.findOneCategoryById(orderDB.getProduct_category()),
-                    ((product_id == null || product_id.getVendor_id() == null || product_id.getVendor_id().equals(1L)) ? "" :
-                            tableMapper.findOneVendorById(product_id.getVendor_id()) + ' ') + (product_id == null ? "" : product_id.getVendor_code() + " "),
+                    (
+                        (this.searchAtribut.subcategoryProduct(orderDB.getProduct_category(), orderDB.getId_product()))
+                        +(searchAtribut.VendorToOrders(orderDB.getProduct_category(), orderDB.getId_product()) == null ? "" :  searchAtribut.VendorToOrders(orderDB.getProduct_category(), orderDB.getId_product()) + ' ')
+                        + (product_id == null ? "" : product_id.getVendor_code() + " ")
+                    ),
                     product_id == null ? tableMapper.findOneVendorById(1L) : tableMapper.findOneVendorById(product_id.getVendor_id()),
-                    orderDB.getComment(),
+                    comment,
                     orderDB.getNumber(),
                     orderDB.getPrice(),
                     orderDB.getWinprice()));
@@ -434,12 +491,14 @@ public class ApiController {
         return new OrdersReceived(orders, ordersDB);
     }
 
+    @ApiOperation(value = "Список продуктов в тендере по его id", notes = "Возвращает список продуктов в тендере, использая только id продуктов")
     @GetMapping("/OrdersBDByTender/{tender}")
     @ResponseBody
     List<OrdersDB> OrdersBDByTender(@PathVariable Long tender) {
         return tableMapper.findAllOrdersBDbyTender(tender);
     }
 
+    @ApiOperation(value = "Добавление основных тендеров через excel файл", notes = "Получает на вход файл в определенном формате, после чего проходится по всем строкам добавляя, новые тендеры в систему")
     @RequestMapping(value = "/addTender", method = RequestMethod.POST, consumes = {"multipart/form-data"})
     @ResponseBody
     List<Tender> addTender(MultipartFile excel) throws IOException, InvalidFormatException {
@@ -506,6 +565,7 @@ public class ApiController {
         return tenders;
     }
 
+    @ApiOperation(value = "Добавляет продукты в категорию из excel файла", notes = "Данная функция нужна для выделение категорий из Прдуктов, помогает быстро создать и перенести продукты в новую категорию")
     @RequestMapping(value = "/addProduct/{category}", method = RequestMethod.POST, consumes = {"multipart/form-data"})
     @ResponseBody
     Map<String, String> addProduct(@PathVariable Long category,MultipartFile excel) throws IOException, InvalidFormatException {
@@ -520,32 +580,43 @@ public class ApiController {
         Map<String, String> a = new HashMap<>();
         a.put("name","Загрузил");
         ProductCategory productCategory = tableMapper.findCategoryById(category);
+
         int count = 1;
         while ( sheet.getRow(count) != null && sheet.getRow(count).getCell(1, Row.MissingCellPolicy.RETURN_BLANK_AS_NULL) != null ) {
             XSSFRow row = sheet.getRow(count);
-            if(row.getCell(0).getNumericCellValue() != 1){
-                String vendor_code = row.getCell(2).toString().substring(row.getCell(2).toString().indexOf(" ")).trim();
-                if(tableMapper.findIdProduct("Select id from " + productCategory.getCategory_en() + " where vendor_code ='" + vendor_code + "'") == null){
-                    tableMapper.InsertProduct("Insert into " + productCategory.getCategory_en() + "(vendor_code,vendor) values ('" + vendor_code + "'" + ",'" + searchAtribut.findVendor(row.getCell(2).toString().substring(0,row.getCell(2).toString().indexOf(" "))) + "')");
-                }
-                Long id = tableMapper.findIdProduct("Select id from " + productCategory.getCategory_en() + " where vendor_code ='" + vendor_code + "'");
-                for(String id_order_string : row.getCell(3).getStringCellValue().trim().split(" ")){
 
-                    Long id_order = Long.valueOf(id_order_string);
-                    if(id_order>21525){
-                        count++;
+            if(row.getCell(0).getNumericCellValue() != 1){
+
+                String vendor_code = row.getCell(2).toString().substring(row.getCell(2).toString().lastIndexOf(" ")).trim();
+                if(tableMapper.findIdProduct("Select id from " + productCategory.getCategory_en() + " where vendor_code ='" + vendor_code + "' and vendor = '"+searchAtribut.findVendor(row.getCell(2).toString().substring(0,row.getCell(2).toString().lastIndexOf(" ")))+"'") == null){
+                    tableMapper.InsertProduct("Insert into " + productCategory.getCategory_en() + "(vendor_code,vendor) values ('" + vendor_code + "'" + ",'" + searchAtribut.findVendor(row.getCell(2).toString().substring(0,row.getCell(2).toString().lastIndexOf(" "))) + "')");
+                }
+                Long id = tableMapper.findIdProduct("Select id from " + productCategory.getCategory_en() + " where vendor_code ='" + vendor_code + "' and vendor = '"+searchAtribut.findVendor(row.getCell(2).toString().substring(0,row.getCell(2).toString().lastIndexOf(" ")))+"'");
+                for(String id_order_string : row.getCell(3).getStringCellValue().trim().split(" ")){
+                    Long id_order;
+                    if(!id_order_string.trim().equals("")){
+                         id_order = Long.valueOf(id_order_string.trim());
+//                        if(id_order>21603){
+//                            continue;
+//                        }
+                    }
+                    else{
                         continue;
                     }
                     tableMapper.ChangeProductFromFile(id_order,id,category,"");
-                    searchAtribut.UpdateProductTender(tableMapper.findTenderIdbyId(id_order));
+                    try {
+                        searchAtribut.UpdateProductTender(tableMapper.findTenderIdbyId(id_order));
+                    }
+                    catch (NullPointerException e){
+                    }
                 }
             }
             else{
                 Long id_order = Long.valueOf(row.getCell(3).getStringCellValue().trim());
-                if(id_order>21525L){
-                    count++;
-                    continue;
-                }
+//                if(id_order>21603){
+//                    count++;
+//                    continue;
+//                }
                 tableMapper.ChangeProduct(id_order,1L,category);
                 searchAtribut.UpdateProductTender(tableMapper.findTenderIdbyId(id_order));
             }
@@ -558,6 +629,7 @@ public class ApiController {
         return a;
     }
 
+    @ApiOperation(value = "Добавление основных тендеров через Api Bicotender", notes = "Получает на вход список номеров тендоров в системе Bicotender. После чего делает запрос к Bicotender и получает всю информацию о данном тендере")
     @PostMapping("/loadTender")
     @ResponseBody
     List<Tender> loadTender(@RequestBody Long[] number) throws JSONException {
@@ -582,19 +654,19 @@ public class ApiController {
                 ZonedDateTime dateStart = ZonedDateTime.parse(tender.get("loadTime").toString() + " Z", format_API_Bico).plusDays(1);
                 Map<String, Double> currency = new HashMap<>();
                 currency = getCurrency.currency(dateStart.format(formatCurrency));
-                double rate = tender.get("valuta").toString().equals("RUB") ? 1 : currency.get(tender.get("valuta").toString());
+                double rate = tender.get("valuta").toString().equals("RUB") || tender.get("valuta").toString().equals("null")  ? 1 : currency.get(tender.get("valuta").toString());
                 JSONObject company = new JSONObject(tender.get("company").toString());
                 String cost = tender.get("cost").toString().equals("null") ? "0" : tender.get("cost").toString();
                 tableMapper.insertTender(tender.get("name").toString(),
                         "https://www.bicotender.ru/tc/tender/show/tender_id/" + tender.get("tender_id"),
                         tender.get("sourceUrl").toString(),
                         ZonedDateTime.parse(tender.get("loadTime").toString() + " Z", format_API_Bico),
-                        ZonedDateTime.parse(tender.get("finishDate").toString() + " Z", format_API_Bico),
+                        tender.get("finishDate").toString().equals("null") ? null :  ZonedDateTime.parse(tender.get("finishDate").toString() + " Z", format_API_Bico),
                         tender.get("openingDate").toString().equals("null") ? null : ZonedDateTime.parse(tender.get("openingDate").toString() + " Z", format_API_Bico),
                         tender.get("tender_id").toString(),
                         new BigDecimal(cost).setScale(2, BigDecimal.ROUND_CEILING),
                         new BigDecimal(0),
-                        tender.get("valuta").toString(),
+                        tender.get("valuta").toString().equals("null") ? null : tender.get("valuta").toString(),
                         new BigDecimal(cost).setScale(2, BigDecimal.ROUND_CEILING),
                         rate,
                         new BigDecimal(cost).setScale(2, BigDecimal.ROUND_CEILING).multiply(new BigDecimal(rate)),
@@ -610,6 +682,7 @@ public class ApiController {
         return tenders;
     }
 
+    @ApiOperation(value = "Возвращение номеров тендоров, которые загрузились не до конца во время загрузки тендоров", notes = "Возвращает список номеров основных и смежных тендеров через пробел")
     @GetMapping("/numberFromBuffer/{id}")
     @ResponseBody
     Map<String,String> numberFromBuffer(@PathVariable Long id){
@@ -618,6 +691,7 @@ public class ApiController {
     return a;
     }
 
+    @ApiOperation(value = "Добавление смежных тендеров через Api Bicotender", notes = "Получает на вход список номеров тендоров в системе Bicotender. После чего делает запрос к Bicotender и получает всю информацию о данном тендере")
     @PostMapping("/loadTenderAdjacent")
     @ResponseBody
     List<Tender> loadTenderAdjacentr(@RequestBody Long[] number) throws JSONException {
@@ -668,6 +742,7 @@ public class ApiController {
         return tenders;
     }
 
+    @ApiOperation(value = "Возвращает список вендоров в данной категории", notes = "по id категории выбирает список вендоров в данной категории")
     @GetMapping("/Vendor/{category}")
     @ResponseBody
     List<Vendor> Vendor(@PathVariable Long category) {
@@ -678,6 +753,7 @@ public class ApiController {
         }
     }
 
+    @ApiOperation(value = "Добавляет или изменяет информацию о продуктах в тендере", notes = "Сравнивает список продуктов который пришел и который есть в БД и изменяет если есть изменения, удаляет лишние из БД и Добавляет нужные в БД")
     @PostMapping("/addOrders")
     @ResponseBody
     HashMap<String, String> Tender(@RequestBody List<OrdersDB> json) {
@@ -690,15 +766,20 @@ public class ApiController {
                 if (ordersDB.getId() == null) {
 
                     tableMapper.insertOrder(
-                            ordersDB.getComment(),
-                            ordersDB.getId_product(),
-                            ordersDB.getProduct_category(),
-                            ordersDB.getTender(),
-                            ordersDB.getNumber(),
-                            ordersDB.getPrice() == null ? new BigDecimal(0) : ordersDB.getPrice(),
-                            ordersDB.getWinprice() == null ? new BigDecimal(0) : ordersDB.getWinprice()
+                           ordersDB
                     );
-                } else {
+                    Long id = tableMapper.checkId();
+                    if(ordersDB.getOption() != null){
+                        for(Option option:ordersDB.getOption()){
+                            tableMapper.insertOptionsOrders(id,option.getId());
+                        }
+                        tableMapper.updateOrdersOptions(tableMapper.SelectOptionsForOrdes(id), id);
+                    }
+                    else{
+                        tableMapper.updateOrdersOptions(null,id);
+                    }
+                }
+                else {
                     tableMapper.updateOrder(
                             ordersDB.getId(),
                             ordersDB.getComment(),
@@ -707,10 +788,44 @@ public class ApiController {
                             ordersDB.getTender(),
                             ordersDB.getNumber(),
                             ordersDB.getPrice() == null ? new BigDecimal(0) : ordersDB.getPrice(),
-                            ordersDB.getWinprice() == null ? new BigDecimal(0) : ordersDB.getWinprice()
+                            ordersDB.getWinprice() == null ? new BigDecimal(0) : ordersDB.getWinprice(),
+                            ordersDB.getFrequency(),
+                            ordersDB.getUsb(),
+                            ordersDB.getVxi(),
+                            ordersDB.getPortable(),
+                            ordersDB.getChannel(),
+                            ordersDB.getPort(),
+                            ordersDB.getForm_factor(),
+                            ordersDB.getPurpose(),
+                            ordersDB.getVoltage(),
+                            ordersDB.getCurrent()
                     );
+                    if(ordersDB.getOption() != null){
+                        List<Long> options_products = tableMapper.getAllOptionsByOrder(ordersDB.getId());
+                        for(Option option:ordersDB.getOption()){
+
+                            if(options_products.contains(option.getId())){
+                                options_products.remove(option.getId());
+                            }
+                            else {
+                                tableMapper.insertOptionsOrders(ordersDB.getId(),option.getId());
+                            }
+                        }
+                        for(Long id_option : options_products){
+                            tableMapper.deleteOptionsOrder(id_option);
+                        }
+                        tableMapper.updateOrdersOptions(tableMapper.SelectOptionsForOrdes(ordersDB.getId()),ordersDB.getId());
+                    }
+                }
+
+                if(ordersDB.getOptions() != null){
+                    tableMapper.updateOrdersOptions(ordersDB.getOptions(),ordersDB.getId());
+                }
+                else{
+                    tableMapper.updateOrdersOptions(null,ordersDB.getId());
                 }
             }
+
         }
         for (Long id : ordersINDB) {
             tableMapper.deleteOrder(id);
@@ -722,48 +837,60 @@ public class ApiController {
         return answear;
     }
 
+    @ApiOperation(value = "Возвращает количество тендеров без продуктов", notes = "Подсчитывает количество тендеров, которые не упоминаются в таблице orders")
     @GetMapping("/CountTenderWithoutOrders")
     @ResponseBody
     Long findCountTenderWithoutOrders() {
         return tableMapper.findCountTenderWithoutOrders();
     }
 
+    @ApiOperation(value = "Возвращает тендеры без продуктов", notes = "Возвращает тендеры, которые не упоминаются в таблице orders")
     @GetMapping("/TenderWithoutOrders")
     @ResponseBody
     List<Tender> findTenderWithoutOrders() {
         return tableMapper.findTenderWithoutOrders();
     }
 
+    @ApiOperation(value = "Возвращает тендеры в которых есть продукт, нет документации", notes = "Возвращает тендеры в которых есть продукт, нет документации")
     @GetMapping("/TendernoDocumentation")
     @ResponseBody
     List<Tender> findTendernoDocumentation() {
         return tableMapper.findTendernoDocumentation();
     }
 
+    @ApiOperation(value = "Возвращает количество тендеров по кварталам и сумму данных тендеров в категории")
     @RequestMapping(path = "/quarterTender/{category}")
     @ResponseBody
     public ArrayList<ReportQuarter> getQuartalTenderReport(@PathVariable Long category, @RequestBody ReceivedJSON json) {
 
         return reportService.getQuartalTenderReport(category, json);
     }
+
+    @ApiOperation(value = "Возвращает количество тендеров по кварталам и сумму данных тендеров в большой категории")
     @RequestMapping(path = "/quarterTenderBigCategory/{category}")
     @ResponseBody
     public ArrayList<ReportQuarter> getQuartalTenderReportBigCategory(@PathVariable Long category, @RequestBody ReceivedJSON json) {
 
         return reportService.getQuartalTenderReportBigCategory(category, json);
     }
+
+    @ApiOperation(value = "Возвращает количество упоминаний продукта в тендерах по кварталам у определеного вендора")
     @RequestMapping(path = "/quarterVendor/{category}")
     @ResponseBody
     public ArrayList<ReportVendorQuarter> getQuartalVendorReport(@PathVariable Long category, @RequestBody ReceivedJSON json) {
 
         return reportService.getQuartalVendorReport(category, json);
     }
+
+    @ApiOperation(value = "Возвращает количество упоминаний продукта в тендерах по кварталам у определеного вендора")
     @RequestMapping(path = "/quarterVendorBigCategory/{category}")
     @ResponseBody
     public ArrayList<ReportVendorQuarter> getQuartalVendorReportBigCategory(@PathVariable Long category, @RequestBody ReceivedJSON json) {
 
         return reportService.getQuartalVendorReportBigCategory(category, json);
     }
+
+    @ApiOperation(value = "Возвращает количество упоминаний комментария к продуктам у которых артикул \"Без артикула\"")
     @RequestMapping(path = "/quarterNoVendor/{category}")
     @ResponseBody
     public ArrayList<ReportVendorQuarter> getQuartalNoVendorReport(@PathVariable Long category, @RequestBody ReceivedJSON json) {
@@ -771,6 +898,7 @@ public class ApiController {
         return reportService.getQuartalNoVendorReport(category, json);
     }
 
+    @ApiOperation(value = "Возвращает количество упоминаний комментария к продуктам у которых артикул \"Без артикула\"")
     @RequestMapping(path = "/quarterNoVendorBigCategory/{category}")
     @ResponseBody
     public ArrayList<ReportVendorQuarter> getQuartalNoVendorReportBigCategory(@PathVariable Long category, @RequestBody ReceivedJSON json) {
@@ -778,18 +906,193 @@ public class ApiController {
         return reportService.getQuartalNoVendorReportBigCategory(category, json);
     }
 
+    @ApiOperation(value = "Возвращает количество упоминаний компании в тендерах по кварталам ")
     @RequestMapping(path = "/quarterCustomer/{company}")
     @ResponseBody
-    public ArrayList<ReportVendorQuarter> getQuartalCustomerReport(@PathVariable Long company, @RequestBody ReceivedJSON json) {
+    public Report getQuartalCustomerReport(@PathVariable Long company, @RequestBody ReportCriteria reportCriteria) {
+        if(reportCriteria.getReceivedJSON().getDateStart() == null){
+            reportCriteria.getReceivedJSON().setDateStart(ZonedDateTime.parse("01.01.2018 00:00:00 Z",format_date));
+        }
+        if(reportCriteria.getReceivedJSON().getDateFinish() == null){
+            reportCriteria.getReceivedJSON().setDateFinish(ZonedDateTime.now());
+        }
+        String tender = searchAtribut.WhereWithoutProduct(reportCriteria.getReceivedJSON()).substring(5);
+        String product = searchAtribut.searchTenderByProduct(reportCriteria.getReceivedJSON().getProduct());
+        String select = "";
+        if(company == 0L){
+            select = "Select c.name as 'Компания', convert(sum(round(tender.sum/(select count(tender) from orders  left join product as pr on pr.id_product = orders.id_product and pr.product_category = orders.product_category" +
+                    " left join product_category on orders.product_category = product_category.id" +
+                    " left join subcategory on subcategory = subcategory.id"+
+                    " left join vendor on pr.vendor = vendor.id "+
+                    " where tender = tender.id "+(!product.equals("")?"and ("+ product + ")":"")+ "),2)),char) as 'Сумма', convert(count(distinct orders.tender),char) as 'Количество тендеров',";
 
-        return reportService.getQuartalCustomerReport(company, json);
+        }
+        else{
+            select = "Select w.name as 'Компания', convert(sum(round(tender.sum/(select count(tender) from orders  left join product as pr on pr.id_product = orders.id_product and pr.product_category = orders.product_category" +
+                    " left join product_category on orders.product_category = product_category.id" +
+                    " left join subcategory on subcategory = subcategory.id"+
+                    " left join vendor on pr.vendor = vendor.id "+
+                    " where tender = tender.id "+(!product.equals("")?"and ("+ product + ")":"")+ "),2)),char) as 'Сумма', convert(count(distinct orders.tender),char) as 'Количество тендеров',";
+
+        }
+
+        List<String> column = new ArrayList<String>();
+        column.add("Компания");
+        column.add("Сумма");
+        column.add("Количество тендеров");
+
+        switch (reportCriteria.getInterval()){
+            case "Год":
+                for(int year = reportCriteria.getReceivedJSON().getDateStart().getYear();year<=reportCriteria.getReceivedJSON().getDateFinish().getYear();year++) {
+                    select= select+ "convert(sum(case" +
+                            " when year(date_start) = " + year +
+                            " then"+" round(tender.sum/(select count(tender) from orders  left join product as pr on pr.id_product = orders.id_product and pr.product_category = orders.product_category" +
+                            " left join product_category on orders.product_category = product_category.id" +
+                            " left join subcategory on subcategory = subcategory.id"+
+                            " left join vendor on pr.vendor = vendor.id"+
+                            "  where tender = tender.id "+(!product.equals("")?"and ("+ product + ")":"")+ "),2)" +
+                            " else null end),char) as 'Сумма в " + year + "', ";
+                  select= select+ "convert(count(distinct (" +
+                            " select(if( year(date_start) =" + year +
+                            " ,tender.id" +
+                            " ,null)))),char) as ' Количество в " + year + "',";
+                    column.add("Сумма в " + year);
+                    column.add("Количество в " + year);
+                }
+
+
+                break;
+            case "Финансовый год":
+                for(int year = reportCriteria.getReceivedJSON().getDateStart().getYear();year<=reportCriteria.getReceivedJSON().getDateFinish().getYear();year++) {
+                    select= select+ "convert(sum(case" +
+                            " when YEAR(date_start) + IF(MONTH(date_start)>10, 1, 0) = " + year +
+                            " then"+" round(tender.sum/(select count(tender) from orders  left join product as pr on pr.id_product = orders.id_product and pr.product_category = orders.product_category" +
+                            " left join tender on orders.tender = tender.id" +
+                            " left join product_category on orders.product_category = product_category.id" +
+                            " left join subcategory on subcategory = subcategory.id"+
+                            " left join vendor on pr.vendor = vendor.id "+" where tender = tender.id "+(!product.equals("")?"and ("+ product + ")":"")+ "),2)" +
+                            " else null end),char) as 'Сумма в " + year + "',";
+                    select= select+ "convert(count(distinct (" +
+                            " select(if( YEAR(date_start) + IF(MONTH(date_start)>10, 1, 0) = " + year +
+                            " ,tender.id" +
+                            " ,null)))),char) as ' Количество в " + year + "',";
+                    column.add("Сумма в " + year);
+                    column.add("Количество в " + year);
+                }
+                break;
+            case "Неделя":
+                for(int year = reportCriteria.getReceivedJSON().getDateStart().getYear();year<=reportCriteria.getReceivedJSON().getDateFinish().getYear();year++) {
+                    for (int week = 1; week <= 52; week++) {
+                        select= select+ "convert(sum(case" +
+                                " when year(date_start) = " + year + " and week(date_start) = " + week +
+                                " then"+" round(tender.sum/(select count(tender) from orders  left join product as pr on pr.id_product = orders.id_product and pr.product_category = orders.product_category" +
+                                " left join tender on orders.tender = tender.id" +
+                                " left join product_category on orders.product_category = product_category.id" +
+                                " left join subcategory on subcategory = subcategory.id"+
+                                " left join vendor on pr.vendor = vendor.id "+" where tender = tender.id "+(!product.equals("")?"and ("+ product + ")":"")+ "),2)" +
+                                " else null end),char) as 'Сумма в " + year + "W" + week + "',";
+                        select= select+ "convert(count(distinct (" +
+                                " select(if( year(date_start) = " + year + " and week(date_start) = " + week +
+                                " ,tender.id" +
+                                " ,null)))),char) as 'Количество в " + year + "W" + week + "',";
+                        column.add("Сумма в " + year + "W" + week);
+                        column.add("Количество в " + year + "W" + week);
+                    }
+                }
+                break;
+            case "Квартал":
+                for(int year = reportCriteria.getReceivedJSON().getDateStart().getYear();year<=reportCriteria.getReceivedJSON().getDateFinish().getYear();year++) {
+                    for (int quarter = 1; quarter <= 4; quarter++) {
+                        select= select+ "convert(sum(case" +
+                                " when year(date_start) = " + year + " and quarter(date_start) = " + quarter +
+                                " then"+" round(tender.sum/(select count(tender) from orders  left join product as pr on pr.id_product = orders.id_product and pr.product_category = orders.product_category" +
+                                " left join tender on orders.tender = tender.id" +
+                                " left join product_category on orders.product_category = product_category.id" +
+                                " left join subcategory on subcategory = subcategory.id"+
+                                " left join vendor on pr.vendor = vendor.id "+" where tender = tender.id "+(!product.equals("")?"and ("+ product + ")":"")+ "),2)" +
+                                " else null end),char) as 'Сумма в " + year + "Q" + quarter + "',";
+                        select= select+ "convert(count(distinct (" +
+                                " select(if( year(date_start) = " + year + " and quarter(date_start) = " + quarter +
+                                " ,tender.id" +
+                                " ,null)))),char) as 'Количество в " + year + "Q" + quarter + "',";
+                        column.add("Сумма в " + year + "Q" + quarter);
+                        column.add("Количество в " + year + "Q" + quarter);
+                    }
+                }
+                break;
+            case"Финансовый квартал":
+                for(int year = reportCriteria.getReceivedJSON().getDateStart().getYear();year<=reportCriteria.getReceivedJSON().getDateFinish().getYear();year++) {
+                    for (int quarter = 1; quarter <= 4; quarter++) {
+                        select= select+ "convert(sum(case" +
+                                " when YEAR(date_start) + IF(MONTH(date_start)>10, 1, 0) = " + year + " and IF(MONTH(date_start)>10, 1, CEIL((MONTH(date_start)+2)/3)) = " + quarter +
+                                " then"+" round(tender.sum/(select count(tender) from orders  left join product as pr on pr.id_product = orders.id_product and pr.product_category = orders.product_category" +
+                                " left join tender on orders.tender = tender.id" +
+                                " left join product_category on orders.product_category = product_category.id" +
+                                " left join subcategory on subcategory = subcategory.id"+
+                                " left join vendor on pr.vendor = vendor.id "+
+                                " where tender = tender.id "+(!product.equals("")?"and ("+ product + ")":"")+ "),2)" +
+                                " else null end),char) as 'Сумма в " + year + "FQ" + quarter + "',";
+                        select= select+ "convert(count(distinct (" +
+                                " select(if( YEAR(date_start) + IF(MONTH(date_start)>10, 1, 0) = " + year + " and IF(MONTH(date_start)>10, 1, CEIL((MONTH(date_start)+2)/3)) = " + quarter +
+                                " ,tender.id" +
+                                " ,null)))),char) as 'Количество в " + year + "FQ" + quarter + "',";;
+                        column.add("Сумма в " + year + "FQ" + quarter);
+                        column.add("Количество в " + year + "FQ" + quarter);
+                    }
+                }
+                break;
+            case"Месяц":
+                for(int year = reportCriteria.getReceivedJSON().getDateStart().getYear();year<=reportCriteria.getReceivedJSON().getDateFinish().getYear();year++) {
+                    for (int month = 1; month <= 12; month++) {
+                        select= select+ "convert(sum(case" +
+                                " when year(date_start) = " + year + " and month(date_start) = " + month +
+                                " then"+" round(tender.sum/(select count(tender) from orders  left join product as pr on pr.id_product = orders.id_product and pr.product_category = orders.product_category" +
+                                " left join tender on orders.tender = tender.id" +
+                                " left join product_category on orders.product_category = product_category.id" +
+                                " left join subcategory on subcategory = subcategory.id"+
+                                " left join vendor on pr.vendor = vendor.id"+
+                                "  where tender = tender.id "+(!product.equals("")?"and ("+ product + ")":"")+ "),2)" +
+                                " else null end),char) as 'Сумма в " + year + "M" + month + "',";
+                        select= select+ "convert(count(distinct (" +
+                                " select(if( year(date_start) = " + year + " and month(date_start) = " + month +
+                                " ,tender.id" +
+                                " ,null)))),char) as 'Количество в " + year + "M" + month + "',";
+
+                        column.add("Сумма в " + year + "M" + month);
+                        column.add("Количество в " + year + "M" + month);
+                    }
+                }
+
+                break;
+        }
+
+
+
+        select= select.substring(0, select.length() - 1) + " from orders " +
+                " left join product as pr on pr.id_product = orders.id_product and pr.product_category = orders.product_category" +
+                " left join tender on orders.tender = tender.id" +
+                " left join product_category on orders.product_category = product_category.id" +
+                " left join subcategory on subcategory = subcategory.id"+
+                " left join vendor on pr.vendor = vendor.id" +
+                " left join customer c on c.id = tender.customer" +
+                " left join typetender t on t.id = tender.typetender" +
+                " left join winner w on w.id = tender.winner" +
+                " left join country on c.country = country.id" +
+                " where " +
+                (!tender.equals("") ?"("+tender+")":"") +
+                (!product.equals("")?"and ("+ product + ")":"")+
+                " group by " + (company == 0L?"c.name":"w.name");
+        return new Report(null,tableMapper.Report(select),column,null);
     }
+    @ApiOperation(value = "Возвращает список кварталов попадающих в переиод")
     @RequestMapping(path = "/getQuartal")
     @ResponseBody
     public List<String> getQuartal( @RequestBody ReceivedJSON json) {
 
         return reportService.getQuartal(json);
     }
+
+    @ApiOperation(value = "Возвращает excel файл с отчетом по всем категориям продуктов")
     @PostMapping("/FileReport")
     @ResponseBody
     ResponseEntity<Resource> downloadFileReport(@RequestBody ReceivedJSON json) throws IOException {
@@ -912,12 +1215,13 @@ public class ApiController {
                 .body(file1);
     }
 
+    @ApiOperation(value = "Добавляет или изменяет продукт в категории в зависимости от наличия id")
     @PostMapping("/saveProduct/{id}")
     @ResponseBody
     List<Product> saveProduct(@RequestBody Product product, @PathVariable Long id) {
         String category = tableMapper.findNameCategoryById(id);
         String[] columns = tableMapper.findcolumnName(category);
-
+        Long id_product;
         if (product.getId() == null) {
             StringBuilder insert = new StringBuilder("Insert into " + category + " (");
 //            Insert into oscilloscope (vendor_code, frequency ,vendor, vxi, usb, channel) values(#{vendor_code}, #{frequency},#{vendor}, #{vxi},#{usb}, #{channel})
@@ -927,7 +1231,7 @@ public class ApiController {
                 }
                 insert.append(" ").append(column).append(",");
             }
-            insert = new StringBuilder(insert.substring(0, insert.length() - 1) + ") values(");
+            insert = new StringBuilder(insert.substring(0, insert.length() - 1) + ") values (");
             for (String column : columns) {
                 switch (column) {
                     case "id":
@@ -939,28 +1243,79 @@ public class ApiController {
                         insert.append("'").append(product.getVendor_code()).append("',");
                         break;
                     case "frequency":
-                        insert.append("'").append(product.getFrequency()).append("',");
+                        if (product.getFrequency() == null) {
+                            insert.append("").append(product.getFrequency()).append(",");
+                        } else {
+                            insert.append("'").append(product.getFrequency()).append("',");
+                        }
                         break;
                     case "usb":
-                        insert.append("").append(product.getUsb() ? 1 : 0).append(",");
+                        insert.append("").append(product.getUsb()).append(",");
                         break;
                     case "vxi":
-                        insert.append("").append(product.getVxi() ? 1 : 0).append(",");
+                        insert.append("").append(product.getVxi() ).append(",");
                         break;
                     case "portable":
-                        insert.append("").append(product.getPortable() ? 1 : 0).append(",");
+                        insert.append("").append(product.getPortable()).append(",");
                         break;
                     case "channel":
-                        insert.append("'").append(product.getChannel()).append("',");
+                        if (product.getChannel() == null) {
+                            insert.append("").append(product.getChannel()).append(",");
+                        } else {
+                            insert.append("'").append(product.getChannel()).append("',");
+                        }
                         break;
                     case "port":
-                        insert.append("'").append(product.getPort()).append("',");
+                        if (product.getPort() == null) {
+                            insert.append("").append(product.getPort()).append(",");
+                        } else {
+                            insert.append("'").append(product.getPort()).append("',");
+                        }
                         break;
+                    case "form_factor":
+                        if (product.getForm_factor() == null) {
+                            insert.append("").append(product.getForm_factor()).append(",");
+                        } else {
+                            insert.append("'").append(product.getForm_factor()).append("',");
+                        }
+                        break;
+                    case "purpose":
+                        if (product.getPurpose() == null) {
+                            insert.append("").append(product.getPurpose()).append(",");
+                        } else {
+                            insert.append("'").append(product.getPurpose()).append("',");
+                        }
+                        break;
+                    case "voltage":
+                        if (product.getVoltage() == null) {
+                            insert.append("").append(product.getVoltage()).append(",");
+                        } else {
+                            insert.append("'").append(product.getVoltage()).append("',");
+                        }
+                        break;
+                    case "current":
+                        if (product.getCurrent() == null) {
+                            insert.append("").append(product.getCurrent()).append(",");
+                        } else {
+                            insert.append("'").append(product.getCurrent()).append("',");
+                        }
+                        break;
+                    case "subcategory":
+                        if(product.getSubcategory() == null || product.getSubcategory().equals("")){
+                            insert.append("").append("null").append(",");
+                        }
+                        else{
+                            insert.append("'").append(tableMapper.findIdSubcategory(product.getSubcategory())).append("',");
+                        }
+                        break;
+
                 }
             }
             insert = new StringBuilder(insert.substring(0, insert.length() - 1) + ")");
             tableMapper.InsertProduct(insert.toString());
-        } else {
+            id_product = tableMapper.findIdProduct("Select id from " + category + " where vendor_code ='" + product.getVendor_code() + (product.getVendor() != null?"' and vendor = '"+product.getVendor()+"'":"'"));
+        }
+        else {
             StringBuilder update = new StringBuilder("Update " + category + " set ");
 //            Update oscilloscope set vendor_code = #{vendor_code}, frequency = #{frequency},vendor = #{vendor}, vxi = #{portable}, usb= #{usb}, channel =#{channel} where id = #{id}
             for (String column : columns) {
@@ -974,67 +1329,162 @@ public class ApiController {
                         update.append(column).append("='").append(product.getVendor_code()).append("',");
                         break;
                     case "frequency":
-                        update.append(column).append("='").append(product.getFrequency()).append("',");
+                        update.append(column).append("=");
+                        if (product.getFrequency() == null) {
+                            update.append("").append(product.getFrequency()).append(",");
+                        } else {
+                            update.append("'").append(product.getFrequency()).append("',");
+                        }
                         break;
                     case "usb":
-                        update.append(column).append("=").append(product.getUsb() ? 1 : 0).append(",");
+                        update.append(column).append("=");
+                        if (product.getUsb() == null) {
+                            update.append("").append(product.getUsb()).append(",");
+                        } else {
+                            update.append("").append(product.getUsb()).append(",");
+                        }
                         break;
                     case "vxi":
-                        update.append(column).append("=").append(product.getVxi() ? 1 : 0).append(",");
+                        update.append(column).append("=");
+                        if (product.getVxi() == null) {
+                            update.append("").append(product.getVxi()).append(",");
+                        } else {
+                            update.append("").append(product.getVxi()).append(",");
+                        }
+
                         break;
                     case "portable":
-                        update.append(column).append("=").append(product.getPortable() ? 1 : 0).append(",");
+                        update.append(column).append("=");
+                        if (product.getPortable() == null) {
+                            update.append("").append(product.getPortable()).append(",");
+                        } else {
+                            update.append("").append(product.getPortable()).append(",");
+                        }
                         break;
                     case "channel":
-                        update.append(column).append("='").append(product.getChannel()).append("',");
+                        update.append(column).append("=");
+                        if (product.getChannel() == null) {
+                            update.append("").append(product.getChannel()).append(",");
+                        } else {
+                            update.append("'").append(product.getChannel()).append("',");
+                        }
                         break;
                     case "port":
-                        update.append(column).append("='").append(product.getPort()).append("',");
+                        update.append(column).append("=");
+                        if (product.getPort() == null) {
+                        update.append("").append(product.getPort()).append(",");
+                    } else {
+                        update.append("'").append(product.getPort()).append("',");
+                    }
+                        break;
+                    case "form_factor":
+                        update.append(column).append("=");
+                        if (product.getForm_factor() == null) {
+                            update.append("").append(product.getForm_factor()).append(",");
+                        } else {
+                            update.append("'").append(product.getForm_factor()).append("',");
+                        }
+                    case "purpose":
+                        update.append(column).append("=");
+                        if (product.getPurpose() == null) {
+                            update.append("").append(product.getPurpose()).append(",");
+                        } else {
+                            update.append("'").append(product.getPurpose()).append("',");
+                        }
+                    case "voltage":
+                        update.append(column).append("=");
+                        if (product.getVoltage() == null) {
+                            update.append("").append(product.getVoltage()).append(",");
+                        } else {
+                            update.append("'").append(product.getVoltage()).append("',");
+                        }
+                    case "current":
+                        update.append(column).append("=");
+                        if (product.getCurrent() == null) {
+                            update.append("").append(product.getCurrent()).append(",");
+                        } else {
+                            update.append("'").append(product.getCurrent()).append("',");
+                        }
+                        break;
+                    case "subcategory":
+                        update.append(column).append("=");
+                        if(product.getSubcategory() == null){
+                            update.append("").append(product.getSubcategory()).append(",");
+                        }
+                        else{
+                            update.append("'").append(tableMapper.findIdSubcategory(product.getSubcategory())).append("',");
+                        }
                         break;
                 }
 
             }
             update = new StringBuilder(update.substring(0, update.length() - 1) + " where id = '" + product.getId() + "'");
             tableMapper.UpdateProduct(update.toString());
+            id_product = product.getId();
+        }
+        if(product.getOption() != null){
+            List<Long> options_products = tableMapper.getAllOptionsByProduct(id,id_product);
+            for(Option option:product.getOption()){
+                if(options_products.contains(option.getId())){
+                   options_products.remove(option.getId());
+                }
+                else {
+                    tableMapper.insertOptionsByProduct(id,id_product,option.getId());
+                }
+            }
+            for(Long id_option : options_products){
+                tableMapper.deleteOptionsByProduct(id_option);
+            }
         }
         return tableMapper.findListProduct(searchAtribut.createSelectProductCategory(id));
 
     }
 
+    @ApiOperation(value = "Сохраняет информацию об основном тенедере")
     @PostMapping("/saveTender")
     @ResponseBody
     Tender saveTender(@RequestBody Tender tender) {
         tableMapper.UpdateTender(tender.getId(), tender.getName_tender(), tender.getBico_tender(), tender.getGos_zakupki(), tender.getDate_start(), tender.getDate_finish(), tender.getDate_tranding(), tender.getNumber_tender(), tender.getFull_sum(), tender.getWin_sum(), tender.getCurrency(), tender.getPrice(), tender.getRate(), tender.getPrice().multiply(BigDecimal.valueOf(tender.getRate())), Long.valueOf(tender.getCustomer()), Long.valueOf(tender.getTypetender()), Long.valueOf(tender.getWinner()), tender.isDublicate());
         return tableMapper.findTenderbyId(tender.getId());
     }
+
+    @ApiOperation(value = "Сохраняет информацию об смежном тенедере")
     @PostMapping("/saveAdjacentTender")
     @ResponseBody
     Tender saveAdjacentTender(@RequestBody Tender tender) {
         tableMapper.UpdateAdjacentTender(tender.getId(), tender.getName_tender(), tender.getBico_tender(), tender.getGos_zakupki(), tender.getDate_start(), tender.getDate_finish(), tender.getDate_tranding(), tender.getNumber_tender(), tender.getFull_sum(), tender.getCurrency(), tender.getPrice(), tender.getRate(), tender.getPrice().multiply(BigDecimal.valueOf(tender.getRate())), Long.valueOf(tender.getCustomer()), Long.valueOf(tender.getTypetender()), tender.isDublicate());
         return tableMapper.findAdjacentTenderbyId(tender.getId());
     }
+
+    @ApiOperation(value = "Возвращает основной тенедер по id")
     @GetMapping("/TenderByID/{id}")
     @ResponseBody
     Tender TenderByID(@PathVariable Long id) {
         return tableMapper.findTenderbyId(id);
     }
+
+    @ApiOperation(value = "Возвращает смежный тенедер по id")
     @GetMapping("/AdjacentTenderByID/{id}")
     @ResponseBody
     Tender AdjacentTenderByID(@PathVariable Long id) {
         return tableMapper.findAdjacentTenderbyId(id);
     }
+
+    @ApiOperation(value = "Возвращает список продуктов по id тендера")
     @PostMapping("/TenderOnProduct")
     @ResponseBody
     List<Tender> TenderOnProduct(@RequestBody TenderProduct json) {
         return tableMapper.TenderOnProduct(json.getProductCategory(), json.getDateStart(), json.getDateFinish(), json.getProduct());
     }
 
+    @ApiOperation(value = "Возвращает список стран")
     @GetMapping("/Country")
     @ResponseBody
     List<Country> Country() {
         return tableMapper.findAllCountry();
     }
 
+    @ApiOperation(value = "удаляет основной тендер по Id")
     @GetMapping("/DeleteTender/{tender}")
     @ResponseBody
     Map<String, String> DeleteTender(@PathVariable Long tender) {
@@ -1044,6 +1494,7 @@ public class ApiController {
         return a;
     }
 
+    @ApiOperation(value = "удаляет смежный тендер по Id")
     @GetMapping("/DeleteAdjacentTender/{tender}")
     @ResponseBody
     Map<String, String> DeleteAdjacentTenderr(@PathVariable Long tender) {
@@ -1053,7 +1504,7 @@ public class ApiController {
         return a;
     }
 
-
+    @ApiOperation(value = "Выводит основные тендеры в excel файл с условиями поиска")
     @PostMapping("/FileTender")
     @ResponseBody
     ResponseEntity<Resource> downloadFile(@RequestBody ReceivedJSON json) throws IOException {
@@ -1254,6 +1705,7 @@ public class ApiController {
                 .body(file1);
     }
 
+    @ApiOperation(value = "Выводит смежные тендеры в excel файл с условиями поиска")
     @PostMapping("/FileAdjacentTender")
     @ResponseBody
     ResponseEntity<Resource> downloadFileAdjacentTender(@RequestBody ReceivedJSON json) throws IOException {
@@ -1447,6 +1899,7 @@ public class ApiController {
                 .body(file1);
     }
 
+    @ApiOperation(value = "Выводит список продкутов в категории в excel файл ")
     @GetMapping("/ProductFile/{category}")
     @ResponseBody
     ResponseEntity<Resource> downloadProductFile(@PathVariable Long category) throws IOException {
@@ -1507,6 +1960,13 @@ public class ApiController {
                 column.put("id", numberColumn);
                 numberColumn++;
             }
+            if (products.get(0).getPortable() != null) {
+                sheet.setColumnWidth(numberColumn, 17 * 256);
+                row.createCell(numberColumn).setCellValue("Подкатегория");
+                row.getCell(numberColumn).setCellStyle(header);
+                column.put("subcategory", numberColumn);
+                numberColumn++;
+            }
             if (products.get(0).getVendor() != null) {
                 sheet.setColumnWidth(numberColumn, 14 * 256);
                 row.createCell(numberColumn).setCellValue("Вендор");
@@ -1561,7 +2021,6 @@ public class ApiController {
                 row.createCell(numberColumn).setCellValue("Портативный");
                 row.getCell(numberColumn).setCellStyle(header);
                 column.put("portable", numberColumn);
-
             }
 
             for (Product product : products) {
@@ -1588,22 +2047,37 @@ public class ApiController {
                                 cell.setCellValue(product.getVendor_code());
                                 break;
                             case "frequency":
-                                cell.setCellValue(product.getFrequency());
+                                if(product.getFrequency()!= null){
+                                    cell.setCellValue(product.getFrequency());
+                                }
+                                ;
                                 break;
                             case "usb":
-                                cell.setCellValue(product.getUsb());
+                                if(product.getUsb() != null){
+                                    cell.setCellValue(product.getUsb());
+                                }
                                 break;
                             case "vxi":
-                                cell.setCellValue(product.getVxi());
+                                if(product.getVxi() != null){
+                                    cell.setCellValue(product.getVxi());
+                                }
+
                                 break;
                             case "portable":
-                                cell.setCellValue(product.getPortable());
+                                if(product.getPortable() != null){
+                                    cell.setCellValue(product.getPortable());
+                                }
                                 break;
                             case "channel":
-                                cell.setCellValue(product.getChannel());
+                                if(product.getChannel() != null){
+                                    cell.setCellValue(product.getChannel());
+                                }
+
                                 break;
                             case "port":
-                                cell.setCellValue(product.getPort());
+                                if(product.getPort() != null){
+                                    cell.setCellValue(product.getPort());
+                                }
                                 break;
                         }
                         if (flag) {
@@ -1628,10 +2102,12 @@ public class ApiController {
         }
     }
 
+    @ApiOperation(value = "Создает новую таблицу с указанными параметрами",  notes = "Добавляет запись в таблицу \"Категории пролдуктов\" после чего создает новую таблицу с параметрами которые были заданны" +
+            "в ситеме и добавляет первоначальную запись \"Без артикула\"")
     @PostMapping("/CreateTable")
     @ResponseBody
     Map<String, String> CreateTable(@RequestBody NewTable table) throws JSONException {
-        tableMapper.InsertCategory(table.getName(), table.getName_en());
+        tableMapper.InsertCategory(table.getName(), table.getName_en(), table.getCategory());
 //        CREATE TABLE `keysight`.`table` (
 //  `id` BIGINT NOT NULL AUTO_INCREMENT,
 //  `vendor_code` VARCHAR(225) NOT NULL,
@@ -1646,36 +2122,61 @@ public class ApiController {
 //    ON DELETE NO ACTION
 //    ON UPDATE NO ACTION);
 //  PRIMARY KEY (`id`));
-        String create = "Create table " + table.getName_en() + " (`id` BIGINT NOT NULL AUTO_INCREMENT, `vendor_code` VARCHAR(225) NOT NULL,";
-        if (table.isFrequency()) {
-            create = create + "`frequency` DOUBLE NOT NULL DEFAULT 0,";
-        }
-        if (table.isChannel()) {
-            create = create + "`channel` INT NOT NULL DEFAULT 0,";
-        }
-        if (table.isPort()) {
-            create = create + "`port` INT NOT NULL DEFAULT 0,";
-        }
-        if (table.isUsb()) {
-            create = create + "`usb` TINYINT NOT NULL DEFAULT b'0',";
-        }
-        if (table.isVxi()) {
-            create = create + "`vxi` TINYINT NOT NULL DEFAULT b'0',";
-        }
-        if (table.isPortable()) {
-            create = create + "`portable` TINYINT NOT NULL DEFAULT b'0',";
+        String create = "Create table " + table.getName_en() + " (`id` BIGINT NOT NULL AUTO_INCREMENT, ";
+        if(table.getSubcategory() != null){
+            create = create + "`subcategory` BIGINT,";
         }
         if (table.isVendor()) {
             create = create + "`vendor` BIGINT NOT NULL DEFAULT 1,INDEX `vendor_idx` (`vendor` ASC), CONSTRAINT `vendor_" + table.getName_en() + "` FOREIGN KEY (`vendor`) REFERENCES `keysight`.`vendor` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION,";
         }
+        create = create + "`vendor_code` VARCHAR(225) NOT NULL, ";
+        if (table.isFrequency()) {
+            create = create + "`frequency` DOUBLE ,";
+        }
+        if (table.isVoltage()) {
+            create = create + "`voltage` DOUBLE ,";
+        }
+        if (table.isCurrent()) {
+            create = create + "`current` DOUBLE ,";
+        }
+        if (table.isChannel()) {
+            create = create + "`channel` INT  ,";
+        }
+        if (table.isPort()) {
+            create = create + "`port` INT ,";
+        }
+        if (table.isUsb()) {
+            create = create + "`usb` TINYINT ,";
+        }
+        if (table.isVxi()) {
+            create = create + "`vxi` TINYINT ,";
+        }
+        if (table.isPortable()) {
+            create = create + "`portable` TINYINT,";
+        }
+        if(table.isForm_factor()){
+            create= create + "`form_factor` VARCHAR(225), ";
+        }
+        if(table.isPurpose()){
+            create= create + "`purpose` VARCHAR(225), ";
+        }
+
         create = create + " PRIMARY KEY (`id`));";
         tableMapper.CreateTable(create);
-        tableMapper.InsertProduct("Insert into " + table.getName_en() + "(vendor_code" + (table.isVendor() ? ",vendor)" : ")") + " values ('Без артикуля'" + (table.isVendor() ? ",'1')" : ")"));
+        tableMapper.InsertProduct("Insert into " + table.getName_en() + "(vendor_code" + (table.isVendor() ? ",vendor)" : ")") + " values ('Без артикула'" + (table.isVendor() ? ",'1')" : ")"));
+        if(table.getSubcategory() != null){
+            for(String sub : table.getSubcategory()){
+                tableMapper.InsertProduct("Insert into " + table.getName_en() + "(vendor_code,subcategory" + (table.isVendor() ? ",vendor)" : ")") + " values ('Без артикула','" +tableMapper.findIdSubcategory(sub)+"'"+ (table.isVendor() ? ",'1')" : ")"));
+            }
+        }
+
+
         HashMap<String, String> answear = new HashMap<>();
         answear.put("name", table.getName());
         return answear;
     }
 
+    @ApiOperation(value = "НЕ ИСПОЛЬЗУЕТСЯ!!!!!!")
     @GetMapping("/ChangeProduct/{categoryFirst}/{categorySecond}")
     @ResponseBody
     String RemoveProduct(@PathVariable Long categoryFirst, @PathVariable Long categorySecond) {
@@ -1723,6 +2224,9 @@ public class ApiController {
                         case "port":
                             insert.append("'").append(product.getPort() != null ? product.getPort() : '0').append("',");
                             break;
+                        case "subcategory":
+                            insert.append("'").append(product.getSubcategory()).append("',");
+                            break;
                     }
                 }
                 insert = new StringBuilder(insert.substring(0, insert.length() - 1) + ")");
@@ -1740,6 +2244,7 @@ public class ApiController {
         return "good";
     }
 
+    @ApiOperation(value = "Заменяет один продукт на другой")
     @PostMapping("/ChangeCategory")
     @ResponseBody
     Map<String, String> ChangeCategory(@RequestBody ChangeCategory changeCategory) {
@@ -1754,13 +2259,15 @@ public class ApiController {
         return a;
     }
 
+    @ApiOperation(value = "Функция для тестирования каких-то функций и возможностей")
     @GetMapping(path = "/Test")
     @ResponseBody
-    List<Tender> Test() throws JSONException {
-
-        return null;
+    Long Test() throws JSONException {
+        tableMapper.insertOrder(new OrdersDB(null, 1L, 7L, 7L, "", 1, new BigDecimal(0), new BigDecimal(0), null, null,null,null,null,null,null,null,null,null,null,null,null,null,null));
+        return tableMapper.checkId();
     }
 
+    @ApiOperation(value = "Выводит всю информацию из фала log.txt")
     @GetMapping(path = "/Log")
     @ResponseBody
     Map<String, String> Log() {
@@ -1774,12 +2281,13 @@ public class ApiController {
             }
         } catch (IOException ex) {
 
-//            System.out.println(ex.getMessage());
+
         }
         a.put("name", answear);
         return a;
     }
 
+    @ApiOperation(value = "Временная функция которая использовалась для дополнения заказчикам инн")
     @GetMapping(path = "/ADDINN")
     @ResponseBody
     Map<String, String> ADDINN() throws JSONException {
@@ -1810,18 +2318,21 @@ public class ApiController {
         return a;
 }
 
+    @ApiOperation(value = "Позваляет выполнить select запрос к бд и получить ответ")
     @PostMapping(path = "/SelectQuery")
     @ResponseBody
     List<Map<Object,Object>> SelectQuery(@RequestBody String query) throws JSONException {
         return tableMapper.selectQuery(query);
     }
 
+    @ApiOperation(value = "Возвращает список синонимов к категориям")
     @GetMapping(path = "/SynonymsProduct")
     @ResponseBody
     List<SynonymsProduct> SynonymsProduct() {
         return tableMapper.findAllSynonymsProduct();
     }
 
+    @ApiOperation(value = "Изменяет или добавляет новые синонимы к категории")
     @PostMapping(path = "/ChangeSynonymsProduct")
     @ResponseBody
     List<SynonymsProduct> ChangeSynonymsProduct(@RequestBody SynonymsProduct synonymsProduct){
@@ -1834,6 +2345,7 @@ public class ApiController {
         return tableMapper.findAllSynonymsProduct();
     }
 
+    @ApiOperation(value = "Возвращает список больших категорий")
     @GetMapping(path = "/BigCategory")
     @ResponseBody
     List<BigCategory> BigCategory() {
@@ -1848,6 +2360,7 @@ public class ApiController {
         return bigCategory;
     }
 
+    @ApiOperation(value = "Изменяет или добавляет большую категорию")
     @PostMapping(path = "/ChangeBigCategory")
     @ResponseBody
     List<BigCategory> ChangeBigCategory(@RequestBody BigCategory big){
@@ -1887,18 +2400,18 @@ public class ApiController {
         return bigCategory;
     }
 
+    @ApiOperation(value = "Временная функция, которая проверяет названия тендоров")
     @GetMapping("/changeNameTender")
     @ResponseBody
     Map<String,String> changeNameTender() throws JSONException {
         List<Tender> tenders = tableMapper.findNameTenderByDate();
         String result = "";
         for(Tender tender:tenders){
-//            System.out.println(Long.valueOf(tender.getNumber_tender().trim()));
+
             JSONObject tender_bico = bicotender.loadTender(Long.valueOf(tender.getNumber_tender().trim()));
-//            System.out.println(tender_bico);
+
             if(!tender.getName_tender().equals(tender_bico.get("name").toString())){
                 tableMapper.changeNameTender(tender.getId(),tender_bico.get("name").toString());
-                System.out.println(tender.getId());
                 result = result+ tender.getId()+" ";
             }
         }
@@ -1907,6 +2420,7 @@ public class ApiController {
         return a;
     }
 
+    @ApiOperation(value = "Возвращает список пользвателей для отображения его в комментариях")
     @GetMapping("/getAllUsers")
     @ResponseBody
     List<User> getAllUsers() {
@@ -1914,6 +2428,7 @@ public class ApiController {
         return tableMapper.findUsers();
     }
 
+    @ApiOperation(value = "Возвращает список комментариев к тендеру")
     @GetMapping("/getCommentsByTender/{tender}")
     @ResponseBody
     List<Comment> getCommentsByTender(@PathVariable Long tender) {
@@ -1921,17 +2436,22 @@ public class ApiController {
         return tableMapper.findAllCommentsByTender(tender);
     }
 
+    @ApiOperation(value = "Добавляет комментарий к тендеру")
     @PostMapping(path = "/postComment")
     @ResponseBody
     List<Comment> PostComment(@RequestBody Comment comment){
         for(Long id: comment.getUsers()){
             String mail = tableMapper.findUserById(id);
-            String message = comment.getText();
+            String message = "<div>Пользователь " +comment.getUser()+ " оставил вам комментарий к тендеру "+ comment.getTender()+ "</div>" +
+                    "<div style=\"padding: 10px;" +
+                    "  border-radius: 5px;" +
+                    "  margin-bottom: 1px;" +
+                    "  border: 1px solid darkgrey;width: fit-content;margin:20px;\">" +comment.getText()+"</div>" +
+                    "<div><a href=\""+url.substring(1,url.length()-1)+"/tender/"+comment.getTender()+"\" target=\"_blank\">"+(url.substring(1,url.length()-1)+"/tender/"+comment.getTender())+"</a></div>";
             try {
-                mailSender.send(mail, "Добавлен комментарий в приложении \"Application Tender\" к тендеру " + comment.getTender(), message);
+                mailSender.send(mail, "Добавлен комментарий в приложении \"Application Tender\" к тендеру "+comment.getTender(), message);
                 }
             catch (Exception e){
-                System.out.println(e.toString());
             }
             }
         comment.setDate(ZonedDateTime.now().plusHours(3));
@@ -1939,11 +2459,654 @@ public class ApiController {
         return tableMapper.findAllCommentsByTender(comment.getTender());
     }
 
+    @ApiOperation(value = "Возвращает количество комментариев у тендера")
     @GetMapping("/CountCommentByTender/{tender}")
     @ResponseBody
     Long CountCommentByTender(@PathVariable Long tender) {
 
         return tableMapper.CountCommentByTender(tender);
+    }
+
+    @ApiOperation(value = "Возвращает подкатегории по категории в системе")
+    @GetMapping("/subcategoryInCategory/{category}")
+    @ResponseBody
+    String[] subcategoryInCategory(@PathVariable Long category) {
+        if (Arrays.asList(tableMapper.findcolumnName(tableMapper.findOneCategoryENById(category))).contains("subcategory")){
+            return tableMapper.subcategoryInCategory(tableMapper.findOneCategoryENById(category));
+        }
+       else{
+           return  null;
+        }
+    }
+
+    @ApiOperation(value = "Возвращает подкатегории в системе")
+    @GetMapping("/AllSubcategory")
+    @ResponseBody
+    String[] allSubcategory() {
+       return tableMapper.findSubcategory();
+    }
+
+    @ApiOperation(value = "Возвращает название колонок в системе")
+    @GetMapping("/ColumnCategory/{category}")
+    @ResponseBody
+    String[] ColumnCategory(@PathVariable Long category) {
+        return tableMapper.findcolumnName(tableMapper.findNameCategoryById(category));
+    }
+    @ApiOperation(value = "Возвращает Список Опций в системе")
+    @GetMapping("/getAllOptions")
+    @ResponseBody
+    List<Option> getAllOptions() {
+        return tableMapper.getAllOptions();
+    }
+    @ApiOperation(value = "Добавляет Опцию в таблицу с опциями")
+    @PostMapping(path = "/Saveoption")
+    @ResponseBody
+    List<Option> saveOption(@RequestBody Option option) {
+
+        if(tableMapper.CheckOption(option.getName()) == null){
+            tableMapper.insertOptions(option.getName());
+            return tableMapper.getAllOptions();
+        }
+        else{
+            return null;
+        }
+
+    }
+    @ApiOperation(value = "Возвращает Список Опций по продукту")
+    @GetMapping("/getAllOptionsByProduct/{product_category}/{id_product}")
+    @ResponseBody
+    List<Option> getAllOptionsByProduct(@PathVariable Long product_category,@PathVariable Long id_product) {
+        return tableMapper.getAllOptionsByProductForOrders(product_category, id_product);
+    }
+
+    @ApiOperation(value = "Заменяет генераторы на генераторы целевого")
+    @GetMapping("/changeGenerator")
+    @ResponseBody
+    List<String> ChangeGenerator() {
+        List<String> answear = new ArrayList<>();
+        List<OrdersDB> ordersDBS = tableMapper.findAllOrdersbyProduct(269L,2L);
+        for(OrdersDB order : ordersDBS){
+        //boolean flag = false;
+        String str = order.getComment().toLowerCase();
+        int index = -1;
+        if (str.contains("гц")) {
+            boolean flag = str.charAt(str.lastIndexOf("гц") - 1) == 'м';
+            boolean flagK = str.charAt(str.lastIndexOf("гц") - 1) == 'к';
+
+            for (int x = str.lastIndexOf("гц") - 2; x >= 0; x--) {
+
+                if (flagK ) {
+                    break;
+                } else if (Character.isLetter(str.charAt(x))) {
+                    index = x;
+                    break;
+                } else if (!Character.isLetterOrDigit(str.charAt(x))) {
+                    if (str.charAt(x) == ')' || str.charAt(x) == '(') {
+                        index = x;
+                        break;
+                    } else if (x != 0 && !Character.isDigit(str.charAt(x - 1))) {
+                        index = x;
+                        break;
+                    }
+
+                }
+            }
+            try {
+                if (flagK ) {
+                    answear.add(order.getTender().toString());
+
+                } else {
+                    String a = (index != -1 ? str.substring(0, index).trim() : "") +
+                            (str.lastIndexOf("гц") + 2 != str.length() ? str.substring(str.lastIndexOf("гц") + 2, str.length() - 1).trim() : "");
+                    Double x = Double.parseDouble(str.substring(index + 1, str.lastIndexOf("гц") - 1).replace(',', '.'));
+                    x = flag ? x / 1000 : x;
+                    if (x < 1) {
+                        tableMapper.ChangeProductAndCommentAndFrequency(order.getId(),1L,10L,a,x);
+                    }
+                    else{
+                        tableMapper.ChangeProductAndCommentAndFrequency(order.getId(),269L,2L,a,x);
+                    }
+                }
+
+            } catch (Exception e) {
+                answear.add(order.getTender().toString());
+            }
+
+        }
+        }
+    return answear;
+    }
+
+    @ApiOperation(value = "Заменяет генераторы на генераторы целевого")
+    @GetMapping("/changeOscilloscope")
+    @ResponseBody
+    List<String> ChangeOscilloscope() {
+        List<String> answear = new ArrayList<>();
+        List<OrdersDB> ordersDBS = tableMapper.findAllOrdersbyProduct(506L,6L);
+        for(OrdersDB order : ordersDBS){
+            //boolean flag = false;
+            String str = order.getComment().toLowerCase();
+            int index = -1;
+            if (str.contains("гц")) {
+                boolean flag = str.charAt(str.lastIndexOf("гц") - 1) == 'м';
+                boolean flagK = str.charAt(str.lastIndexOf("гц") - 1) == 'к';
+
+                for (int x = str.lastIndexOf("гц") - 2; x >= 0; x--) {
+
+                    if (flagK ) {
+                        break;
+                    } else if (Character.isLetter(str.charAt(x))) {
+                        index = x;
+                        break;
+                    } else if (!Character.isLetterOrDigit(str.charAt(x))) {
+                        if (str.charAt(x) == ')' || str.charAt(x) == '(') {
+                            index = x;
+                            break;
+                        } else if (x != 0 && !Character.isDigit(str.charAt(x - 1))) {
+                            index = x;
+                            break;
+                        }
+
+                    }
+                }
+                try {
+                    if (flagK ) {
+                        answear.add(order.getTender().toString());
+
+                    }
+                    else {
+                        String a = (index != -1 ? str.substring(0, index).trim() : "") +
+                                (str.lastIndexOf("гц") + 2 != str.length() ? str.substring(str.lastIndexOf("гц") + 2, str.length() - 1).trim() : "");
+                        Double x = Double.parseDouble(str.substring(index + 1, str.lastIndexOf("гц") - 1).replace(',', '.'));
+                        x = flag ? x / 1000 : x;
+                        if (x <= 0.5) {
+                            tableMapper.ChangeProductAndCommentAndFrequency(order.getId(),1L,9L,a,x);
+                        }
+                        else{
+                            tableMapper.ChangeProductAndCommentAndFrequency(order.getId(),506L,6L,a,x);
+                        }
+                    }
+
+                } catch (Exception e) {
+                    answear.add(order.getTender().toString());
+                }
+
+            }
+        }
+        return answear;
+    }
+
+    @ApiOperation(value = "Заменяет генераторы на генераторы целевого")
+    @GetMapping("/changeOscilloscopeFrequency")
+    @ResponseBody
+    List<String> ChangeOscilloscopeFrequency() {
+        List<String> answear = new ArrayList<>();
+        List<OrdersDB> ordersDBS = tableMapper.findAllOrdersbyProduct(506L,6L);
+        for(OrdersDB order : ordersDBS){
+            try{
+            if(order.getFrequency() != null){
+                if(order.getFrequency() <= 0.5 ){
+                    tableMapper.ChangeProductAndCommentAndFrequency(order.getId(),1L,9L,order.getComment(),order.getFrequency());
+                }
+            }
+
+
+                } catch (Exception e) {
+                    answear.add(order.getTender().toString());
+                }
+
+
+        }
+        return answear;
+    }
+
+    @ApiOperation(value = "Заменяет генераторы на генераторы целевого")
+    @GetMapping("/changeGeneratorFrequency")
+    @ResponseBody
+    List<String> ChangeGeneratorFrequency() {
+        List<String> answear = new ArrayList<>();
+        List<OrdersDB> ordersDBS = tableMapper.findAllOrdersbyProduct(269L,2L);
+        for(OrdersDB order : ordersDBS){
+            try{
+                if(order.getFrequency() != null){
+                    if(order.getFrequency() <= 1 ){
+                        tableMapper.ChangeProductAndCommentAndFrequency(order.getId(),1L,10L,order.getComment(),order.getFrequency());
+                    }
+                }
+
+
+            } catch (Exception e) {
+                answear.add(order.getTender().toString());
+            }
+
+
+        }
+        return answear;
+    }
+
+    @ApiOperation(value = "Добавляет продукты в категорию из excel файла", notes = "Данная функция перенеосит продукты в другую категорию")
+    @RequestMapping(value = "/ChangeProduct/{category}/{oldcategory}", method = RequestMethod.POST, consumes = {"multipart/form-data"})
+    @ResponseBody
+    Map<String, String> ChangeProduct(@PathVariable Long category,@PathVariable Long oldcategory,MultipartFile excel) throws IOException, InvalidFormatException {
+
+
+        File temp = new File(pathname);
+        String nameOldCategory = tableMapper.findNameCategoryById(oldcategory);
+        String nameCategory = tableMapper.findNameCategoryById(category);
+        excel.transferTo(temp);
+        //InputStream ExcelFileToRead= new InputStreamReader(new FileInputStream(temp), "UTF-8");
+        XSSFWorkbook workbook = new XSSFWorkbook(temp);
+        XSSFSheet sheet = workbook.getSheetAt(0);
+        Map<String, String> a = new HashMap<>();
+        a.put("name","Загрузил");
+        ProductCategory productCategory = tableMapper.findCategoryById(category);
+        int count = 1;
+        while ( sheet.getRow(count) != null && sheet.getRow(count).getCell(0, Row.MissingCellPolicy.RETURN_BLANK_AS_NULL) != null ) {
+            XSSFRow row = sheet.getRow(count);
+            if(row.getCell(1, Row.MissingCellPolicy.RETURN_BLANK_AS_NULL) != null && row.getCell(1).getStringCellValue().trim().equals("Общего назначения")) {
+
+                Product product = tableMapper.findOneProduct("Select * from "+nameOldCategory+" where id = "+row.getCell(0).getStringCellValue()+" limit 1");
+                if(product != null){
+                    if(tableMapper.findIdProduct("Select id from "+nameCategory+" where vendor_code = '"+product.getVendor_code()+"' and vendor = "+product.getVendor()) == null){
+                        tableMapper.InsertProduct("Insert into "+nameCategory+" (vendor_code,vendor) values ('"+product.getVendor_code()+"',"+product.getVendor()+")");
+                    }
+                    Long id = tableMapper.findIdProduct("Select id from "+nameCategory+" where vendor_code = '"+product.getVendor_code()+"' and vendor = "+product.getVendor());
+                    tableMapper.UpdateProductAll("Update orders set id_product = "+id+", product_category = "+category + " where id_product= "+product.getId()+" and product_category = "+oldcategory);
+                }
+
+            }
+            count++;
+        }
+
+        //ExcelFileToRead.close();
+
+        return a;
+    }
+
+    @ApiOperation(value = "Собирает одно таблицу с продуктами")
+    @GetMapping("/CreateProductTable")
+    @ResponseBody
+    List<String> CreateProductTable(){
+        List<String> a = new ArrayList<>();
+        List<ProductCategory> productCategories = tableMapper.findAllProductCategory();
+        for(ProductCategory productCategory : productCategories){
+
+            List<Product> products = tableMapper.findListProduct(searchAtribut.createSelectProductCategory(productCategory.getId()));
+            for(Product product :products){
+                product.setProduct_category_id(productCategory.getId());
+                if(product.getVendor_id() == null){
+                    product.setVendor_id(1L);
+                }
+                    if(tableMapper.CheckProduct(product) == null){
+                        try {
+                            tableMapper.InsertIntoProduct(product);
+                        }
+                        catch (Exception e){
+                            System.out.println(e);
+                            a.add(product.getProduct_category()+" "+ product.getId());
+                        }
+
+                    }
+
+
+            }
+        }
+        return a;
+    }
+
+    @ApiOperation(value ="Новая функция для вывода отчетов")
+    @PostMapping("/ReportProduct")
+    @ResponseBody
+    Report ReportProduct(@RequestBody ReportCriteria reportCriteria){
+        if(reportCriteria.getReceivedJSON().getDateStart() == null){
+            reportCriteria.getReceivedJSON().setDateStart(ZonedDateTime.parse("01.01.2018 00:00:00 Z",format_date));
+        }
+        if(reportCriteria.getReceivedJSON().getDateFinish() == null){
+            reportCriteria.getReceivedJSON().setDateFinish(ZonedDateTime.now());
+        }
+        Map<String,Double> kurs = new HashMap<>();
+        kurs.put("2018",62.6906);
+        kurs.put("2019",64.6625);
+        kurs.put("2020",72.1260);
+        kurs.put("2021",73.7123);
+        String nameYear = "Год";
+        String tender = searchAtribut.WhereWithoutProduct(reportCriteria.getReceivedJSON()).substring(5);
+        String tenderPeriod = searchAtribut.ParametrsWithoutProductAndDate(reportCriteria.getReceivedJSON()).substring(5);
+        String product = searchAtribut.searchTenderByProduct(reportCriteria.getReceivedJSON().getProduct());
+        String selectProduct = "Select vendor.name as 'Вендор', convert(sum(case" +
+                                                           " when orders.product_category <> 13 "+
+                                                           " then orders.number" +
+                                                           " else null end),char) as 'Сумма', ";
+        List<String> columnProduct = new ArrayList<String>();
+        columnProduct.add("Вендор");
+        columnProduct.add("Сумма");
+        List<String> columnTender = new ArrayList<String>();
+        String selectTenderForTable = selectTenderForTable = "Select convert(SUM(round(sum/(select count(tender)" +
+                " from orders" +
+                " left join product as pr on pr.id_product = orders.id_product and pr.product_category = orders.product_category" +
+                " left join product_category on orders.product_category = product_category.id" +
+                " left join subcategory on subcategory = subcategory.id"+
+                " left join vendor on pr.vendor = vendor.id" +
+                " where orders.tender = tender.id " +
+                (!product.equals("")?" and ("+ product + ")":"") + "),2)),char) as 'Сумма'," +
+                " convert(count(distinct orders.tender),char) as 'Количество тендеров',";
+
+        String groupByForTable = "";
+            switch (reportCriteria.getInterval()){
+                case "Год":
+                    for(int year = reportCriteria.getReceivedJSON().getDateStart().getYear();year<=reportCriteria.getReceivedJSON().getDateFinish().getYear();year++) {
+                        selectProduct= selectProduct+ "convert(sum(case" +
+                                " when year(date_start) = " + year + " and orders.product_category <> 13" +
+                                " then orders.number" +
+                                " else null end),char) as '" + year + "',";
+//                        selectTenderForChart = selectTenderForChart + "year(date_start) as year, "
+                        columnProduct.add(String.valueOf(year));
+                    }
+                    nameYear = "Год";
+                    selectTenderForTable = selectTenderForTable+"convert(year(date_start),char) as 'Год'";
+                    columnTender.add("Год");
+                    groupByForTable = "year(date_start)";
+                    break;
+                case "Финансовый год":
+                    for(int year = reportCriteria.getReceivedJSON().getDateStart().getYear();year<=reportCriteria.getReceivedJSON().getDateFinish().getYear();year++) {
+                        selectProduct= selectProduct+ "convert(sum(case" +
+                                " when YEAR(date_start) + IF(MONTH(date_start)>10, 1, 0) = " + year + " and orders.product_category <> 13" +
+                                " then orders.number" +
+                                " else null end),char) as '" + year + "',";
+                        columnProduct.add(String.valueOf(year));
+                    }
+                    nameYear = "Финансовый год";
+                    selectTenderForTable = selectTenderForTable + "convert(YEAR(date_start) + IF(MONTH(date_start)>10, 1, 0),char) as 'Финансовый год'";
+                    columnTender.add("Финансовый год");
+                    groupByForTable = "YEAR(date_start) + IF(MONTH(date_start)>10, 1, 0)";
+                    break;
+                case "Неделя":
+                    for(int year = reportCriteria.getReceivedJSON().getDateStart().getYear();year<=reportCriteria.getReceivedJSON().getDateFinish().getYear();year++) {
+                        for (int week = 1; week <= 52; week++) {
+                            selectProduct= selectProduct+ "convert(sum(case" +
+                                    " when year(date_start) = " + year + " and week(date_start) = " + week + " and orders.product_category <> 13" +
+                                    " then orders.number" +
+                                    " else null end),char) as '" + year + "W" + week + "',";
+                            columnProduct.add(year + "W" + week);
+                        }
+                    }
+                    nameYear = "Год";
+                    selectTenderForTable = selectTenderForTable + "convert(year(date_start),char) as 'Год', convert(week(date_start),char) as 'Неделя'";
+                    columnTender.add("Год");
+                    columnTender.add("Неделя");
+                    groupByForTable = "year(date_start), week(date_start)";
+                    break;
+                case "Квартал":
+                    for(int year = reportCriteria.getReceivedJSON().getDateStart().getYear();year<=reportCriteria.getReceivedJSON().getDateFinish().getYear();year++) {
+                        for (int quarter = 1; quarter <= 4; quarter++) {
+                            selectProduct= selectProduct+ "convert(sum(case" +
+                                    " when year(date_start) = " + year + " and quarter(date_start) = " + quarter + " and orders.product_category <> 13" +
+                                    " then orders.number" +
+                                    " else null end),char) as '" + year + "Q" + quarter + "',";
+                            columnProduct.add(year + "Q" + quarter);
+                        }
+                    }
+                    nameYear = "Год";
+                    selectTenderForTable = selectTenderForTable + "convert(year(date_start),char) as 'Год', convert(quarter(date_start),char) as 'Квартал'";
+                    columnTender.add("Год");
+                    columnTender.add("Квартал");
+                    groupByForTable = "year(date_start), quarter(date_start)";
+                    break;
+                case"Финансовый квартал":
+                    for(int year = reportCriteria.getReceivedJSON().getDateStart().getYear();year<=reportCriteria.getReceivedJSON().getDateFinish().getYear();year++) {
+                        for (int quarter = 1; quarter <= 4; quarter++) {
+                            selectProduct= selectProduct+ "convert(sum(case" +
+                                    " when YEAR(date_start) + IF(MONTH(date_start)>10, 1, 0) = " + year + " and IF(MONTH(date_start)>10, 1, CEIL((MONTH(date_start)+2)/3)) = " + quarter + " and orders.product_category <> 13" +
+                                    " then orders.number" +
+                                    " else null end),char) as '" + year + "FQ" + quarter + "',";
+                            columnProduct.add(year + "FQ" + quarter);
+                        }
+                    }
+                    nameYear = "Финансовый год";
+                    selectTenderForTable = selectTenderForTable + "convert(YEAR(date_start) + IF(MONTH(date_start)>10, 1, 0),char) as 'Финансовый год', convert(IF(MONTH(date_start)>10, 1, CEIL((MONTH(date_start)+2)/3)),char) as 'Финансовый квартал'";
+                    columnTender.add("Финансовый год");
+                    columnTender.add("Финансовый квартал");
+                    groupByForTable = "YEAR(date_start) + IF(MONTH(date_start)>10, 1, 0), IF(MONTH(date_start)>10, 1, CEIL((MONTH(date_start)+2)/3))";
+                    break;
+                case"Месяц":
+                    for(int year = reportCriteria.getReceivedJSON().getDateStart().getYear();year<=reportCriteria.getReceivedJSON().getDateFinish().getYear();year++) {
+                        for (int month = 1; month <= 12; month++) {
+                            selectProduct= selectProduct+ "convert(sum(case" +
+                                    " when year(date_start) = " + year + " and month(date_start) = " + month + " and orders.product_category <> 13" +
+                                    " then orders.number" +
+                                    " else null end),char) as '" + year + "M" + month + "',";
+                            columnProduct.add(year + "M" + month);
+                        }
+                    }
+                    nameYear = "Год";
+                    selectTenderForTable = selectTenderForTable + "convert(year(date_start),char) as 'year', convert(month(date_start),char) as 'Месяц'";
+                    columnTender.add("Год");
+                    columnTender.add("Месяц");
+                    groupByForTable = "year(date_start), month(date_start)";
+                    break;
+            }
+        columnTender.add("Количество тендеров");
+            columnTender.add("Сумма");
+        columnTender.add("Сумма в долларах");
+
+
+
+            selectProduct= selectProduct.substring(0, selectProduct.length() - 1) + " from orders " +
+                    " left join product as pr on pr.id_product = orders.id_product and pr.product_category = orders.product_category" +
+                    " left join tender on orders.tender = tender.id" +
+                    " left join product_category on orders.product_category = product_category.id" +
+                    " left join subcategory on subcategory = subcategory.id"+
+                    " left join vendor on pr.vendor = vendor.id" +
+                    " left join customer c on c.id = tender.customer" +
+                    " left join typetender t on t.id = tender.typetender" +
+                    " left join winner w on w.id = tender.winner" +
+                    " left join country on c.country = country.id" +
+                    " where " +
+                    (!tender.equals("") ?"("+tender+")":"") +
+                    (!product.equals("")?" and ("+ product + ")":"") +
+                    " group by pr.vendor";
+            selectTenderForTable = selectTenderForTable + " from orders " +
+        " left join product as pr on pr.id_product = orders.id_product and pr.product_category = orders.product_category" +
+                " left join tender on orders.tender = tender.id" +
+                " left join product_category on orders.product_category = product_category.id" +
+                " left join subcategory on subcategory = subcategory.id"+
+                " left join vendor on pr.vendor = vendor.id" +
+                    " left join customer c on c.id = tender.customer" +
+                    " left join typetender t on t.id = tender.typetender" +
+                    " left join winner w on w.id = tender.winner" +
+                    " left join country on c.country = country.id" +
+                " where " +
+                (!tender.equals("") ?"("+tender+")":"") +
+                (!product.equals("")?" and ("+ product + ")":"") +" group by " +groupByForTable + " order by " + groupByForTable ;
+        List<Map<String,String>> tenderTable = tableMapper.Report(selectTenderForTable);
+        for(Map<String,String> a : tenderTable){
+            try{
+                BigDecimal b = BigDecimal.valueOf(Double.parseDouble(a.get("Сумма")) / kurs.get(a.get(nameYear))).setScale(2, BigDecimal.ROUND_CEILING) ;
+                a.put("Сумма в долларах",b.toString());
+            }catch (Exception e){
+                a.put("Сумма в долларах","0");
+            }
+
+        }
+        return new Report(tenderTable,tableMapper.Report(selectProduct),columnProduct,columnTender);
+    }
+
+    @ApiOperation(value = "Сохраненные посики")
+    @GetMapping("/SaveParameters")
+    @ResponseBody
+    List<SearchParameters> AllSearchParametrs() throws JsonProcessingException {
+        Jsonb jsonb = JsonbBuilder.create();
+        List<SearchParameters> searchParametersList = new ArrayList<>();
+        List<SearchParametersFromDB> searchParametersFromDBS = tableMapper.search_parameters();
+        for(SearchParametersFromDB parameters : searchParametersFromDBS){
+            searchParametersList.add(new SearchParameters(parameters.getId(),
+                    parameters.getNickname(),
+                    parameters.getName(),
+                    parameters.getDateStart(),
+                    parameters.getDateFinish(),
+                    parameters.isDublicate(),
+                    parameters.isQuarter(),
+                    parameters.isTypeExclude(),
+                    jsonb.fromJson(parameters.getType(), new ArrayList<TypeTender>(){}.getClass().getGenericSuperclass()),
+                    parameters.isCustomExclude(),
+                    jsonb.fromJson(parameters.getCustom(),new ArrayList<Company>(){}.getClass().getGenericSuperclass()),
+                    parameters.getInnCustomer(),
+                    parameters.getCountry(),
+                    parameters.isWinnerExclude(),
+                    jsonb.fromJson(parameters.getWinner(),new ArrayList<Company>(){}.getClass().getGenericSuperclass()),
+                    parameters.getMinSum(),
+                    parameters.getMaxSum(),
+                    parameters.getIds(),
+                    parameters.getBicotender(),
+                    parameters.isNumberShow(),
+                    jsonb.fromJson(parameters.getProduct(),new ArrayList<ProductReceived>(){}.getClass().getGenericSuperclass()),
+                    jsonb.fromJson(parameters.getRegion(), new ArrayList<Region>(){}.getClass().getGenericSuperclass()),
+                    jsonb.fromJson(parameters.getDistrict(),new ArrayList<District>(){}.getClass().getGenericSuperclass())
+                    )
+            );
+        }
+
+        return searchParametersList;
+    }
+    @ApiOperation(value = "Сохранить поиск")
+    @PostMapping("/save_SaveParameters")
+    @ResponseBody
+    List<SearchParameters> save_SaveParameters(@RequestBody SearchParameters searchParameters) throws JsonProcessingException {
+        Jsonb jsonb = JsonbBuilder.create();
+        Integer idSearchParameters = tableMapper.countSearchParametersByName(searchParameters.getName());
+        if(idSearchParameters == null || idSearchParameters == 0){
+            tableMapper.saveParameters(searchParameters.getNickname(),
+                    searchParameters.getName(),
+                    searchParameters.getDateStart(),
+                    searchParameters.getDateFinish(),
+                    searchParameters.isDublicate(),
+                    searchParameters.isTypeExclude(),
+                    jsonb.toJson(searchParameters.getType()),
+                    searchParameters.isCustomExclude(),
+                    jsonb.toJson(searchParameters.getCustom()),
+                    searchParameters.getInnCustomer(),
+                    searchParameters.getCountry(),
+                    searchParameters.isWinnerExclude(),
+                    jsonb.toJson(searchParameters.getWinner()),
+                    searchParameters.getMinSum(),
+                    searchParameters.getMaxSum(),
+                    Arrays.toString(searchParameters.getIds()),
+                    Arrays.toString(searchParameters.getBicotender()),
+                    searchParameters.isNumberShow(),
+                    jsonb.toJson(searchParameters.getProduct()),
+                    jsonb.toJson(searchParameters.getRegions()),
+                    jsonb.toJson(searchParameters.getDistricts()));
+        }
+        else if (idSearchParameters == 1){
+            tableMapper.updateParameters(tableMapper.idSearchParametersByName(searchParameters.getName()),
+                    searchParameters.getNickname(),
+                    searchParameters.getName(),
+                    searchParameters.getDateStart(),
+                    searchParameters.getDateFinish(),
+                    searchParameters.isDublicate(),
+                    searchParameters.isTypeExclude(),
+                    jsonb.toJson(searchParameters.getType()),
+                    searchParameters.isCustomExclude(),
+                    jsonb.toJson(searchParameters.getCustom()),
+                    searchParameters.getInnCustomer(),
+                    searchParameters.getCountry(),
+                    searchParameters.isWinnerExclude(),
+                    jsonb.toJson(searchParameters.getWinner()),
+                    searchParameters.getMinSum(),
+                    searchParameters.getMaxSum(),
+                    Arrays.toString(searchParameters.getIds()),
+                    Arrays.toString(searchParameters.getBicotender()),
+                    searchParameters.isNumberShow(),
+                    jsonb.toJson(searchParameters.getProduct()),
+                    jsonb.toJson(searchParameters.getRegions()),
+                    jsonb.toJson(searchParameters.getDistricts()));
+        }
+
+
+        List<SearchParameters> searchParametersList = new ArrayList<>();
+        List<SearchParametersFromDB> searchParametersFromDBS = tableMapper.search_parameters();
+        for(SearchParametersFromDB parameters : searchParametersFromDBS){
+            searchParametersList.add(new SearchParameters(parameters.getId(),
+                    parameters.getNickname(),
+                    parameters.getName(),
+                    parameters.getDateStart(),
+                    parameters.getDateFinish(),
+                    parameters.isDublicate(),
+                    parameters.isQuarter(),
+                    parameters.isTypeExclude(),
+                    jsonb.fromJson(parameters.getType(), new ArrayList<TypeTender>(){}.getClass().getGenericSuperclass()),
+                    parameters.isCustomExclude(),
+                    jsonb.fromJson(parameters.getCustom(),new ArrayList<Company>(){}.getClass().getGenericSuperclass()),
+                    parameters.getInnCustomer(),
+                    parameters.getCountry(),
+                    parameters.isWinnerExclude(),
+                    jsonb.fromJson(parameters.getWinner(),new ArrayList<Company>(){}.getClass().getGenericSuperclass()),
+                    parameters.getMinSum(),
+                    parameters.getMaxSum(),
+                    parameters.getIds(),
+                    parameters.getBicotender(),
+                    parameters.isNumberShow(),
+                    jsonb.fromJson(parameters.getProduct(),new ArrayList<ProductReceived>(){}.getClass().getGenericSuperclass()),
+                    jsonb.fromJson(parameters.getRegion(), new ArrayList<Region>(){}.getClass().getGenericSuperclass()),
+                    jsonb.fromJson(parameters.getDistrict(),new ArrayList<District>(){}.getClass().getGenericSuperclass())
+                    )
+            );
+        }
+
+        return searchParametersList;
+    }
+    @ApiOperation(value = "Удалить поиск")
+    @PostMapping("/delete_SaveParameters")
+    @ResponseBody
+    List<SearchParameters> delete_SaveParameters(@RequestBody Long id) throws JsonProcessingException {
+        Jsonb jsonb = JsonbBuilder.create();
+        if(tableMapper.countSearchParametersById(id) > 0 ){
+            tableMapper.deleteSearchParametersById(id);
+        }
+        List<SearchParameters> searchParametersList = new ArrayList<>();
+        List<SearchParametersFromDB> searchParametersFromDBS = tableMapper.search_parameters();
+        for(SearchParametersFromDB parameters : searchParametersFromDBS){
+            searchParametersList.add(new SearchParameters(parameters.getId(),
+                    parameters.getNickname(),
+                    parameters.getName(),
+                    parameters.getDateStart(),
+                    parameters.getDateFinish(),
+                    parameters.isDublicate(),
+                    parameters.isQuarter(),
+                    parameters.isTypeExclude(),
+                    jsonb.fromJson(parameters.getType(), new ArrayList<TypeTender>(){}.getClass().getGenericSuperclass()),
+                    parameters.isCustomExclude(),
+                    jsonb.fromJson(parameters.getCustom(),new ArrayList<Company>(){}.getClass().getGenericSuperclass()),
+                    parameters.getInnCustomer(),
+                    parameters.getCountry(),
+                    parameters.isWinnerExclude(),
+                    jsonb.fromJson(parameters.getWinner(),new ArrayList<Company>(){}.getClass().getGenericSuperclass()),
+                    parameters.getMinSum(),
+                    parameters.getMaxSum(),
+                    parameters.getIds(),
+                    parameters.getBicotender(),
+                    parameters.isNumberShow(),
+                    jsonb.fromJson(parameters.getProduct(),new ArrayList<ProductReceived>(){}.getClass().getGenericSuperclass()),
+                    jsonb.fromJson(parameters.getRegion(), new ArrayList<Region>(){}.getClass().getGenericSuperclass()),
+                    jsonb.fromJson(parameters.getDistrict(),new ArrayList<District>(){}.getClass().getGenericSuperclass())
+                    )
+            );
+        }
+
+        return searchParametersList;
+    }
+    @ApiOperation(value = "Возвращает список регионов")
+    @GetMapping("/Region")
+    @ResponseBody
+    List<Region> Region() {
+
+        return tableMapper.selectRegion();
+    }
+    @ApiOperation(value = "Возвращает список округов")
+    @GetMapping("/District")
+    @ResponseBody
+    List<District> District() {
+        return tableMapper.selectDistrict();
     }
 }
 

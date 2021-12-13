@@ -7,6 +7,8 @@ public class ProductCategory {
 
     String category_en;
 
+    String category_product;
+
     public ProductCategory() {
     }
 
@@ -34,12 +36,21 @@ public class ProductCategory {
         this.category_en = category_en;
     }
 
+    public String getCategory_product() {
+        return category_product;
+    }
+
+    public void setCategory_product(String category_product) {
+        this.category_product = category_product;
+    }
+
     @Override
     public String toString() {
         return "ProductCategory{" +
                 "id=" + id +
                 ", category='" + category + '\'' +
                 ", category_en='" + category_en + '\'' +
+                ", category_product='" + category_product + '\'' +
                 '}';
     }
 }

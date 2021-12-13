@@ -3,22 +3,25 @@ package com.application_tender.tender.subsidiaryModels;
 import java.time.ZonedDateTime;
 
 public class ReportCriteria {
-    private Long category;
-    private ZonedDateTime dateStart;
-    private ZonedDateTime dateFinish;
+   private ReceivedJSON receivedJSON;
+   private String interval;
 
-    public ReportCriteria() {
-    }
+   public ReceivedJSON getReceivedJSON() {
+      return receivedJSON;
+   }
 
-    public Long getCategory() {
-        return category;
-    }
+   public void setReceivedJSON(ReceivedJSON receivedJSON) {
+      this.receivedJSON = receivedJSON;
+   }
 
-    public ZonedDateTime getDateStart() {
-        return dateStart;
-    }
+   public String getInterval() {
+      return interval;
+   }
 
-    public ZonedDateTime getDateFinish() {
-        return dateFinish;
-    }
+   public void setInterval(String interval) {
+      this.interval = interval;
+   }
+
+   public ReportCriteria() {
+   }
 }

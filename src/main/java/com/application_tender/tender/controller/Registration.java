@@ -12,11 +12,12 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.crypto.password.Pbkdf2PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
+import javax.mail.MessagingException;
 import javax.swing.text.TabableView;
 import java.util.*;
 
 @RestController
-@CrossOrigin(origins = "http://localhost:4200")
+//@CrossOrigin(origins = "http://localhost:4200")
 public class Registration {
     @Autowired
     private MailSender mailSender;
@@ -28,7 +29,7 @@ public class Registration {
     private String url;
     @PostMapping("/registration")
     @ResponseBody
-    ResponseEntity registration(@RequestBody User user) {
+    ResponseEntity registration(@RequestBody User user) throws MessagingException {
 //        System.out.println(user);
         if(tableMapper.findUserByUserName(user.getUsername()) != null){
             return ResponseEntity.status(500).build();
@@ -39,7 +40,7 @@ public class Registration {
             if(u != null){
                 String message = String.format(
                         "Здравствуйте, %s! \n" +
-                                "Вам доступна регистрация в приложении  \"Application Tender\", на роль%s. Перейдите по ссылке: "+url+", \n" +
+                                "Вам доступна регистрация в приложении  \"Application Tender\", на роль%s. Перейдите по ссылке: "+url.substring(1,url.length()-1)+"/registration , \n" +
                                 "и введите данный код %s",
                         u.getUsername(),u.getRole().toString(),u.getActivationCode()
                 );
@@ -55,7 +56,6 @@ public class Registration {
     @PostMapping("/setPassword")
     @ResponseBody
     ResponseEntity setPassword(@RequestBody setPassword setPassword) {
-
         User u = tableMapper.findUserByUserName(setPassword.getUsername());
         if(u != null){
             if(setPassword.getActivationCode().equals(u.getActivationCode())){

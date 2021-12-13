@@ -1,5 +1,7 @@
 package com.application_tender.tender.subsidiaryModels;
 
+import java.util.Arrays;
+
 public class NewTable {
     private String name;
     private String name_en;
@@ -10,6 +12,12 @@ public class NewTable {
     private boolean usb;
     private boolean portable;
     private boolean port;
+    private boolean form_factor;
+    private boolean purpose;
+    private boolean voltage;
+    private boolean current;
+    private String[] subcategory;
+    private String category;
 
     public String getName() {
         return name;
@@ -43,6 +51,34 @@ public class NewTable {
         return portable;
     }
 
+    public boolean isForm_factor() {
+        return form_factor;
+    }
+
+    public boolean isPurpose() {
+        return purpose;
+    }
+
+    public boolean isVoltage() {
+        return voltage;
+    }
+
+    public boolean isCurrent() {
+        return current;
+    }
+
+    public String[] getSubcategory() {
+        return subcategory;
+    }
+
+    public boolean isPort() {
+        return port;
+    }
+
+    public String getCategory() {
+        return category;
+    }
+
     @Override
     public String toString() {
         return "NewTable{" +
@@ -55,11 +91,12 @@ public class NewTable {
                 ", usb=" + usb +
                 ", portable=" + portable +
                 ", port=" + port +
+                ", form_factor=" + form_factor +
+                ", purpose=" + purpose +
+                ", voltage=" + voltage +
+                ", current=" + current +
+                ", subcategory=" + Arrays.toString(subcategory) +
+                ", category='" + category + '\'' +
                 '}';
     }
-
-    public boolean isPort() {
-        return port;
-    }
-
 }

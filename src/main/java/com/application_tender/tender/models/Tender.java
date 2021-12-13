@@ -47,6 +47,10 @@ public class Tender {
     private boolean dublicate;
     private String country;
 
+    private String winner_country;
+
+    private String winner_inn;
+
     public Tender() {
     }
 
@@ -219,6 +223,23 @@ public class Tender {
     public void setCountry(String country) {
         this.country = country;
     }
+
+    public String getWinner_country() {
+        return winner_country;
+    }
+
+    public void setWinner_country(String winner_country) {
+        this.winner_country = winner_country;
+    }
+
+    public String getWinner_inn() {
+        return winner_inn;
+    }
+
+    public void setWinner_inn(String winner_inn) {
+        this.winner_inn = winner_inn;
+    }
+
     @Override
     public String toString() {
         return "Tender{" +
@@ -243,6 +264,8 @@ public class Tender {
                 ", product='" + product + '\'' +
                 ", dublicate=" + dublicate +
                 ", country='" + country + '\'' +
+                ", winner_country='" + winner_country + '\'' +
+                ", winner_inn='" + winner_inn + '\'' +
                 '}';
     }
 }

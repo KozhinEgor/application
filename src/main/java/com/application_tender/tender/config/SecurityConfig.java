@@ -60,7 +60,11 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter  {
                 .formLogin().disable()
                 .httpBasic().disable()
                 .authorizeRequests()
-                .antMatchers("/", "/auth","/setPassword").permitAll()
+                .antMatchers("/", "/auth","/checkNickname","/setPassword","/v2/api-docs",
+                        "/swagger-resources/**",
+                        "/swagger-ui.html",
+                        "/webjars/**"
+                      ).permitAll()
                 .anyRequest().authenticated()
                 ;
         http.addFilterBefore(jwtRequestFilter, UsernamePasswordAuthenticationFilter.class);

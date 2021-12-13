@@ -20,6 +20,7 @@ public class ReportService {
     private  final TableMapper tableMapper;
     @Autowired
     private SearchAtribut searchAtribut;
+    private String tenders;
 
     public ReportService(TableMapper tableMapper, FileService fileService) {
         this.tableMapper = tableMapper;
@@ -47,7 +48,7 @@ public class ReportService {
             int q = Integer.parseInt(tender.get("q"));
             boolean flag = Boolean.parseBoolean(tender.get("flag"));
 
-            while (y != year || q != quartal + 1) {
+            while (y != year || q != quartal ) {
 
               reportQuarters.add(0, tableMapper.findForOrders((flag?y+1:y), q, this.dataRangeString(flag, json.isQuarter(), q,y), "product_category = "+category, tenders));
 
@@ -79,7 +80,7 @@ public class ReportService {
             int q = Integer.parseInt(tender.get("q"));
             boolean flag = Boolean.parseBoolean(tender.get("flag"));
 
-            while (y != year || q != quartal + 1) {
+            while (y != year || q != quartal) {
 
                 reportQuarters.add(0, tableMapper.findForOrders((flag?y+1:y), q, this.dataRangeString(flag, json.isQuarter(), q,y), category, tenders));
 
@@ -107,6 +108,7 @@ public class ReportService {
 
 
             List<Tender> tender = tableMapper.findAllTenderTerms(searchAtribut.findTenderByTerms(json));
+            System.out.println(tender.size());
             if(json.getDateFinish() != null){
                 year = json.getDateFinish().getYear();
                 if (!json.isQuarter()){
@@ -146,6 +148,7 @@ public class ReportService {
                     }
                 }
             }
+
             if(tender.size() != 0){
                 tenders = "(";
                 for (Tender t:tender){
@@ -213,6 +216,7 @@ public class ReportService {
     public ArrayList<ReportVendorQuarter>getQuartalVendorReport (Long category,  ReceivedJSON json){
         ArrayList<ReportVendorQuarter> reportVendorQuarters = new ArrayList<>();
         Map<String,String> tender = this.tenders(json);
+
         if(tender != null){
             String tenders =" and orders.tender in "+ tender.get("tenders");
             int year = Integer.parseInt(tender.get("year"));
@@ -224,17 +228,15 @@ public class ReportService {
 
             String category_en = tableMapper.findOneCategoryENById(category);
 
-            while (y != year || q != quartal+1) {
+            while (y != year || q != quartal) {
                 Map<String, Integer> vendorCount = new HashMap<String, Integer>();
                 List<String> vendors = new LinkedList<>();
-                System.out.println(q + " " + y);
-                System.out.println(flag +" "+json.isQuarter()+" "+q+" "+y);
+
                 String range = this.dataRangeString(flag, json.isQuarter(), q,y);
-                System.out.println(range);
-                System.out.println(tenders);
+
                 vendors = tableMapper.findVendorForOrders(range,"product_category = "+category, category_en, tenders);
 
-                System.out.println(vendors);
+
                 for (String vendor : vendors) {
                     if (vendor.equals("No vendor")) {
                     } else if (!vendorCount.containsKey(vendor)) {
@@ -301,7 +303,7 @@ public class ReportService {
 
 
 
-            while (y != year || q != quartal+1) {
+            while (y != year || q != quartal) {
                 Map<String, Integer> vendorCount = new HashMap<String, Integer>();
                 List<String> vendors = new LinkedList<>();
 
@@ -364,7 +366,7 @@ public class ReportService {
     public ArrayList<ReportVendorQuarter> getQuartalNoVendorReport ( Long category, ReceivedJSON json) {
         ArrayList<ReportVendorQuarter> reportVendorQuarters = new ArrayList<>();
         Map<String, String> tender = this.tenders(json);
-//        System.out.println(tender);
+
         if (tender != null) {
             String tenders =" and orders.tender in "+ tender.get("tenders");
             int year = Integer.parseInt(tender.get("year"));
@@ -376,7 +378,7 @@ public class ReportService {
 
             String category_en = tableMapper.findOneCategoryENById(category);
 
-            while (y != year || q != quartal + 1) {
+            while (y != year || q != quartal) {
                 Map<String, Integer> vendorCount = new HashMap<String, Integer>();
 
                 List<String> vendors = tableMapper.findNoVendorForOrders(this.dataRangeString(flag, json.isQuarter(), q, y), "product_category = "+category, category_en, tenders);
@@ -430,7 +432,7 @@ public class ReportService {
     public ArrayList<ReportVendorQuarter> getQuartalNoVendorReportBigCategory ( Long bigCategory, ReceivedJSON json) {
         ArrayList<ReportVendorQuarter> reportVendorQuarters = new ArrayList<>();
         Map<String, String> tender = this.tenders(json);
-//        System.out.println(tender);
+
         if (tender != null) {
             List<Long> CategoryList= tableMapper.findCategorybyBigCategory(bigCategory);
             String category = "product_category in ("+CategoryList.toString().substring(1,CategoryList.toString().length() - 1)+")";
@@ -443,7 +445,7 @@ public class ReportService {
 
 
 
-            while (y != year || q != quartal + 1) {
+            while (y != year || q != quartal) {
                 Map<String, Integer> vendorCount = new HashMap<String, Integer>();
                 List<String> vendors = new LinkedList<>();
 
@@ -452,7 +454,7 @@ public class ReportService {
                     vendors = tableMapper.findNoVendorForOrders(this.dataRangeString(flag, json.isQuarter(), q,y), "product_category = "+cat, category_en, tenders);
 
                     for (String vendor : vendors) {
-//                        System.out.println(category_en);
+
                         if (vendor.equals("No vendor")) {
                         } else if (!vendorCount.containsKey(vendor)) {
                             vendorCount.put(vendor, 1);
@@ -512,7 +514,7 @@ public class ReportService {
             boolean flag = Boolean.parseBoolean(tender.get("flag"));
 
 
-            while (y != year || q != quartal+1) {
+            while (y != year || q != quartal) {
                 Map<String, Integer> customerCount = new HashMap<>();
                 List<ReportCompany> companies = new LinkedList<>();
                 if(company == 0){
@@ -542,7 +544,7 @@ public class ReportService {
                         boolean flag2 = false;
 
                         for (ReportVendorQuarter reportVendorQuarter : reportVendorQuarters) {
-//                            System.out.println(reportVendorQuarter.getVendor().equals(entry.getKey()) + " " + reportVendorQuarter.getVendor());
+
                             if (reportVendorQuarter.getVendor().equals(entry.getKey())) {
                                 reportVendorQuarter.getQuarter().put(String.valueOf((flag?y+1:y)) + ' ' + String.valueOf(q), entry.getValue());
                                 flag2 = true;
@@ -584,7 +586,7 @@ public class ReportService {
             int q = Integer.parseInt(tender.get("q"));
             boolean flag = Boolean.parseBoolean(tender.get("flag"));
 
-            while (y != year || q != quartal + 1) {
+            while (y != year || q != quartal) {
                 Quartal.add(y+" "+q);
 
                 Map<String,Integer> n = this.countQuartal(y,q,flag);

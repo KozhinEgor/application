@@ -4,42 +4,93 @@ import com.application_tender.tender.models.Company;
 import com.application_tender.tender.models.District;
 import com.application_tender.tender.models.Region;
 import com.application_tender.tender.models.TypeTender;
+import org.json.JSONObject;
 
-import java.io.DataInputStream;
 import java.math.BigDecimal;
 import java.time.ZonedDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
+import java.util.List;
 
-//{dateStart: '', dateFinish: '', type: '%', custom: '%', winner: '%', minSum: 0, maxSum: 999999999999}
-public class ReceivedJSON {
-    private final DateTimeFormatter format_date = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm:ss z");
+public class SearchParameters {
+    private Long id;
+    private String nickname;
+    private String name;
+
 
     private ZonedDateTime dateStart;
     private ZonedDateTime dateFinish;
     private boolean dublicate;
     private boolean quarter;
     private boolean typeExclude;
-    private TypeTender[] type;
+    private List<TypeTender> type;
     private boolean customExclude;
-    private Company[] custom;
+    private List<Company> custom;
     private String innCustomer;
     private Long country;
     private boolean winnerExclude;
-    private Company[] winner;
+    private List<Company> winner;
     private BigDecimal minSum;
     private BigDecimal maxSum;
     private Long[] ids;
+    private String ids_string;
     private Long[] bicotender;
+    private String bicotender_string;
     private boolean numberShow;
-    private ProductReceived[] product;
-    private Region[] regions;
-    private District[] districts;
-    public ReceivedJSON() {
+    private List<ProductReceived> product;
+    private List<Region> regions;
+    private List<District> districts;
+
+    public SearchParameters() {
     }
 
-    public DateTimeFormatter getFormat_date() {
-        return format_date;
+    public SearchParameters(Long id, String nickname, String name, ZonedDateTime dateStart, ZonedDateTime dateFinish, boolean dublicate, boolean quarter, boolean typeExclude, List<TypeTender> type, boolean customExclude, List<Company> custom, String innCustomer, Long country, boolean winnerExclude, List<Company> winner, BigDecimal minSum, BigDecimal maxSum, String ids_string, String bicotender_string, boolean numberShow, List<ProductReceived> product, List<Region> region, List<District> district) {
+        this.id = id;
+        this.nickname = nickname;
+        this.name = name;
+        this.dateStart = dateStart;
+        this.dateFinish = dateFinish;
+        this.dublicate = dublicate;
+        this.quarter = quarter;
+        this.typeExclude = typeExclude;
+        this.type = type;
+        this.customExclude = customExclude;
+        this.custom = custom;
+        this.innCustomer = innCustomer;
+        this.country = country;
+        this.winnerExclude = winnerExclude;
+        this.winner = winner;
+        this.minSum = minSum;
+        this.maxSum = maxSum;
+        this.ids_string = ids_string;
+        this.bicotender_string = bicotender_string;
+        this.numberShow = numberShow;
+        this.product = product;
+        this.regions = region;
+        this.districts = district;
+    }
+
+    public Long getId() {
+        return id;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    public String getNickname() {
+        return nickname;
+    }
+
+    public void setNickname(String nickname) {
+        this.nickname = nickname;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
     }
 
     public ZonedDateTime getDateStart() {
@@ -82,11 +133,11 @@ public class ReceivedJSON {
         this.typeExclude = typeExclude;
     }
 
-    public TypeTender[] getType() {
+    public List<TypeTender> getType() {
         return type;
     }
 
-    public void setType(TypeTender[] type) {
+    public void setType(List<TypeTender> type) {
         this.type = type;
     }
 
@@ -98,11 +149,11 @@ public class ReceivedJSON {
         this.customExclude = customExclude;
     }
 
-    public Company[] getCustom() {
+    public List<Company> getCustom() {
         return custom;
     }
 
-    public void setCustom(Company[] custom) {
+    public void setCustom(List<Company> custom) {
         this.custom = custom;
     }
 
@@ -130,11 +181,11 @@ public class ReceivedJSON {
         this.winnerExclude = winnerExclude;
     }
 
-    public Company[] getWinner() {
+    public List<Company> getWinner() {
         return winner;
     }
 
-    public void setWinner(Company[] winner) {
+    public void setWinner(List<Company> winner) {
         this.winner = winner;
     }
 
@@ -162,12 +213,28 @@ public class ReceivedJSON {
         this.ids = ids;
     }
 
+    public String getIds_string() {
+        return ids_string;
+    }
+
+    public void setIds_string(String ids_string) {
+        this.ids_string = ids_string;
+    }
+
     public Long[] getBicotender() {
         return bicotender;
     }
 
     public void setBicotender(Long[] bicotender) {
         this.bicotender = bicotender;
+    }
+
+    public String getBicotender_string() {
+        return bicotender_string;
+    }
+
+    public void setBicotender_string(String bicotender_string) {
+        this.bicotender_string = bicotender_string;
     }
 
     public boolean isNumberShow() {
@@ -178,77 +245,58 @@ public class ReceivedJSON {
         this.numberShow = numberShow;
     }
 
-    public ProductReceived[] getProduct() {
+    public List<ProductReceived> getProduct() {
         return product;
     }
 
-    public void setProduct(ProductReceived[] product) {
+    public void setProduct(List<ProductReceived> product) {
         this.product = product;
     }
 
-    public Region[] getRegions() {
+    public List<Region> getRegions() {
         return regions;
     }
 
-    public void setRegions(Region[] regions) {
+    public void setRegionList(List<Region> regions) {
         this.regions = regions;
     }
 
-    public District[] getDistricts() {
+    public List<District> getDistricts() {
         return districts;
     }
 
-    public void setDistricts(District[] districts) {
+    public void setDistrictList(List<District> districts) {
         this.districts = districts;
     }
 
     @Override
     public String toString() {
-        return "ReceivedJSON{" +
-                "format_date=" + format_date +
+        return "SearchParameters{" +
+                "id=" + id +
+                ", nickname='" + nickname + '\'' +
+                ", name='" + name + '\'' +
                 ", dateStart=" + dateStart +
                 ", dateFinish=" + dateFinish +
                 ", dublicate=" + dublicate +
                 ", quarter=" + quarter +
                 ", typeExclude=" + typeExclude +
-                ", type=" + Arrays.toString(type) +
+                ", type=" + type +
                 ", customExclude=" + customExclude +
-                ", custom=" + Arrays.toString(custom) +
+                ", custom=" + custom +
                 ", innCustomer='" + innCustomer + '\'' +
                 ", country=" + country +
                 ", winnerExclude=" + winnerExclude +
-                ", winner=" + Arrays.toString(winner) +
+                ", winner=" + winner +
                 ", minSum=" + minSum +
                 ", maxSum=" + maxSum +
                 ", ids=" + Arrays.toString(ids) +
+                ", ids_string='" + ids_string + '\'' +
                 ", bicotender=" + Arrays.toString(bicotender) +
+                ", bicotender_string='" + bicotender_string + '\'' +
                 ", numberShow=" + numberShow +
-                ", product=" + Arrays.toString(product) +
-                ", regions=" + Arrays.toString(regions) +
-                ", districts=" + Arrays.toString(districts) +
-                '}';
-    }
-
-    public String toDB() {
-        return "{" +
-                "\"dateStart\":" + dateStart.format(format_date) +
-                ", dateFinish=" + dateFinish +
-                ", dublicate=" + dublicate +
-                ", quarter=" + quarter +
-                ", typeExclude=" + typeExclude +
-                ", type=" + Arrays.toString(type) +
-                ", customExclude=" + customExclude +
-                ", custom=" + Arrays.toString(custom) +
-                ", innCustomer='" + innCustomer + '\'' +
-                ", country=" + country +
-                ", winnerExclude=" + winnerExclude +
-                ", winner=" + Arrays.toString(winner) +
-                ", minSum=" + minSum +
-                ", maxSum=" + maxSum +
-                ", ids=" + Arrays.toString(ids) +
-                ", bicotender=" + Arrays.toString(bicotender) +
-                ", numberShow=" + numberShow +
-                ", product=" + Arrays.toString(product) +
+                ", product=" + product +
+                ", regionList=" + regions +
+                ", districtList=" + districts +
                 '}';
     }
 }
