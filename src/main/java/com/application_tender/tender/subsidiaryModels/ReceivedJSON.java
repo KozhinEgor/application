@@ -35,6 +35,8 @@ public class ReceivedJSON {
     private ProductReceived[] product;
     private Region[] regions;
     private District[] districts;
+    private boolean plan_schedule;
+    private boolean realized;
     public ReceivedJSON() {
     }
 
@@ -202,6 +204,22 @@ public class ReceivedJSON {
         this.districts = districts;
     }
 
+    public boolean isPlan_schedule() {
+        return plan_schedule;
+    }
+
+    public void setPlan_schedule(boolean plan_schedule) {
+        this.plan_schedule = plan_schedule;
+    }
+
+    public boolean isRealized() {
+        return realized;
+    }
+
+    public void setRealized(boolean realized) {
+        this.realized = realized;
+    }
+
     @Override
     public String toString() {
         return "ReceivedJSON{" +
@@ -226,29 +244,8 @@ public class ReceivedJSON {
                 ", product=" + Arrays.toString(product) +
                 ", regions=" + Arrays.toString(regions) +
                 ", districts=" + Arrays.toString(districts) +
-                '}';
-    }
-
-    public String toDB() {
-        return "{" +
-                "\"dateStart\":" + dateStart.format(format_date) +
-                ", dateFinish=" + dateFinish +
-                ", dublicate=" + dublicate +
-                ", quarter=" + quarter +
-                ", typeExclude=" + typeExclude +
-                ", type=" + Arrays.toString(type) +
-                ", customExclude=" + customExclude +
-                ", custom=" + Arrays.toString(custom) +
-                ", innCustomer='" + innCustomer + '\'' +
-                ", country=" + country +
-                ", winnerExclude=" + winnerExclude +
-                ", winner=" + Arrays.toString(winner) +
-                ", minSum=" + minSum +
-                ", maxSum=" + maxSum +
-                ", ids=" + Arrays.toString(ids) +
-                ", bicotender=" + Arrays.toString(bicotender) +
-                ", numberShow=" + numberShow +
-                ", product=" + Arrays.toString(product) +
+                ", plan_schedule=" + plan_schedule +
+                ", realized=" + realized +
                 '}';
     }
 }

@@ -2,10 +2,7 @@ package com.application_tender.tender.controller;
 
 import com.application_tender.tender.mapper.TableMapper;
 import com.application_tender.tender.models.*;
-import com.application_tender.tender.subsidiaryModels.BigCategory;
-import com.application_tender.tender.subsidiaryModels.Product;
-import com.application_tender.tender.subsidiaryModels.ProductReceived;
-import com.application_tender.tender.subsidiaryModels.ReceivedJSON;
+import com.application_tender.tender.subsidiaryModels.*;
 import org.springframework.stereotype.Controller;
 
 import java.time.ZonedDateTime;
@@ -62,10 +59,10 @@ public class SearchAtribut {
         return idType;
     }
 
-    public String searchTenderByProduct(ProductReceived[] products) {
+    public String searchTenderByProduct(List<ProductReceived> products) {
 
         String where = "";
-        if(products != null && products.length != 0){
+        if(products != null && products.size() != 0){
         for (ProductReceived product : products) {
             String whereProduct = "(";
 
@@ -114,7 +111,7 @@ public class SearchAtribut {
 
     private final DateTimeFormatter format_sql = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss z");
 
-    public String findTenderByTerms(ReceivedJSON json) {
+    public String findTenderByTerms(SearchParameters json) {
         String where = "where";
         if (json.getDateStart() != null) {
             where = where + " date_start >= \"" + json.getDateStart().format(format_sql) + "\"";
@@ -123,7 +120,7 @@ public class SearchAtribut {
             ZonedDateTime finish = json.getDateFinish().plusHours(23L - json.getDateFinish().getHour());
             where = where + (where.equals("where") ? " date_start <= \"" + finish.format(format_sql) + "\"" : " and date_start <= \"" + finish.format(format_sql) + "\"");
         }
-        if (json.getType() != null && json.getType().length != 0) {
+        if (json.getType() != null && json.getType().size() != 0) {
             String type = "(";
             for (TypeTender t : json.getType()) {
                 type = type + t.getId() + ",";
@@ -135,27 +132,28 @@ public class SearchAtribut {
                 where = where + (where.equals("where") ? " typetender in " + type : " and typetender in " + type);
             }
         }
-        if(json.getRegions() != null && json.getRegions().length != 0){
+        if(json.getRegions() != null && json.getRegions().size() != 0){
             String regions = "(";
             for (Region c : json.getRegions()) {
-                regions = regions + " c.inn like '" +c.getNumber()+ "%' or";
+                regions = regions + " (c.inn like '" +c.getNumber()+ "%' and c.country = '2') or";
             }
             regions = regions.substring(0, regions.length() - 2) + ")";
                 where = where + (where.equals("where") ? regions : " and  " + regions);
 
         }
-        if(json.getDistricts() != null && json.getDistricts().length != 0){
+        if(json.getDistricts() != null && json.getDistricts().size() != 0){
             String regions = "(";
             for (District c : json.getDistricts()) {
                 for(String region : tableMapper.regionInDistrict(c.getId())){
-                    regions = regions + " c.inn like '" +region+ "%' or";
+                    regions = regions + " (c.inn like '" +region+ "%' and c.country = '2')or";
                 }
 
             }
             regions = regions.substring(0, regions.length() - 2) + ")";
+            System.out.println(regions);
             where = where + (where.equals("where") ? regions : " and  " + regions);
         }
-        if (json.getCustom() != null && json.getCustom().length != 0) {
+        if (json.getCustom() != null && json.getCustom().size() != 0) {
             String customer = "(";
             for (Company c : json.getCustom()) {
                 customer = customer + c.getId() + ",";
@@ -182,7 +180,7 @@ public class SearchAtribut {
                 where = where + (where.equals("where") ? " c.country = " + json.getCountry() : " and c.country = " + json.getCountry());
             }
         }
-        if (json.getWinner() != null && json.getWinner().length != 0) {
+        if (json.getWinner() != null && json.getWinner().size() != 0) {
             String winner = "(";
             for (Company w : json.getWinner()) {
                 winner = winner + w.getId() + ",";
@@ -228,7 +226,16 @@ public class SearchAtribut {
                 where = where + (where.equals("where") ? " number_tender in " + number_tender : " and number_tender in " + number_tender);
             }
         }
-        if (json.getProduct() != null && json.getProduct().length != 0) {
+        if(json.isRealized() && json.isPlan_schedule()){
+            String idTender = "";
+            for(Long a : this.tableMapper.AllIdPlan()){
+                idTender = idTender + a.toString() + ',';
+            }
+            if(!idTender.equals("")) {
+                where = where + (where.equals("where") ? " tender.id not in(" + idTender.substring(0, idTender.length() - 1) +")": "and  tender.id not in(" + idTender.substring(0, idTender.length() - 1)+")");
+            }
+        }
+        if (json.getProduct() != null && json.getProduct().size() != 0) {
 
             String idString = this.searchTenderByProduct(json.getProduct());
 
@@ -246,7 +253,7 @@ public class SearchAtribut {
             return where;
         }
     }
-    public String WhereWithoutProduct(ReceivedJSON json) {
+    public String WhereWithoutProduct(SearchParameters json) {
         String where = "where";
         if (json.getDateStart() != null) {
             where = where + " date_start >= \"" + json.getDateStart().format(format_sql) + "\"";
@@ -255,7 +262,7 @@ public class SearchAtribut {
             ZonedDateTime finish = json.getDateFinish().plusHours(23L - json.getDateFinish().getHour());
             where = where + (where.equals("where") ? " date_start <= \"" + finish.format(format_sql) + "\"" : " and date_start <= \"" + finish.format(format_sql) + "\"");
         }
-        if (json.getType() != null && json.getType().length != 0) {
+        if (json.getType() != null && json.getType().size() != 0) {
             String type = "(";
             for (TypeTender t : json.getType()) {
                 type = type + t.getId() + ",";
@@ -267,7 +274,7 @@ public class SearchAtribut {
                 where = where + (where.equals("where") ? " typetender in " + type : " and typetender in " + type);
             }
         }
-        if (json.getCustom() != null && json.getCustom().length != 0) {
+        if (json.getCustom() != null && json.getCustom().size() != 0) {
             String customer = "(";
             for (Company c : json.getCustom()) {
                 customer = customer + c.getId() + ",";
@@ -294,7 +301,7 @@ public class SearchAtribut {
                 where = where + (where.equals("where") ? " c.country = " + json.getCountry() : " and c.country = " + json.getCountry());
             }
         }
-        if (json.getWinner() != null && json.getWinner().length != 0) {
+        if (json.getWinner() != null && json.getWinner().size() != 0) {
             String winner = "(";
             for (Company w : json.getWinner()) {
                 winner = winner + w.getId() + ",";
@@ -347,9 +354,9 @@ public class SearchAtribut {
             return where;
         }
     }
-    public String ParametrsWithoutProductAndDate(ReceivedJSON json) {
+    public String ParametrsWithoutProductAndDate(SearchParameters json) {
         String where = "where";
-        if (json.getType() != null && json.getType().length != 0) {
+        if (json.getType() != null && json.getType().size() != 0) {
         String type = "(";
         for (TypeTender t : json.getType()) {
             type = type + t.getId() + ",";
@@ -361,7 +368,7 @@ public class SearchAtribut {
             where = where + (where.equals("where") ? " typetender in " + type : " and typetender in " + type);
         }
     }
-        if (json.getCustom() != null && json.getCustom().length != 0) {
+        if (json.getCustom() != null && json.getCustom().size() != 0) {
             String customer = "(";
             for (Company c : json.getCustom()) {
                 customer = customer + c.getId() + ",";
@@ -388,7 +395,7 @@ public class SearchAtribut {
                 where = where + (where.equals("where") ? " c.country = " + json.getCountry() : " and c.country = " + json.getCountry());
             }
         }
-        if (json.getWinner() != null && json.getWinner().length != 0) {
+        if (json.getWinner() != null && json.getWinner().size() != 0) {
             String winner = "(";
             for (Company w : json.getWinner()) {
                 winner = winner + w.getId() + ",";

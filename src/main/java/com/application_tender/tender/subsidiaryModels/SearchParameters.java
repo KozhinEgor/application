@@ -39,11 +39,14 @@ public class SearchParameters {
     private List<ProductReceived> product;
     private List<Region> regions;
     private List<District> districts;
-
+    private boolean plan_schedule;
+    private boolean realized;
+    private boolean adjacent_tender;
+    private boolean private_search;
     public SearchParameters() {
     }
 
-    public SearchParameters(Long id, String nickname, String name, ZonedDateTime dateStart, ZonedDateTime dateFinish, boolean dublicate, boolean quarter, boolean typeExclude, List<TypeTender> type, boolean customExclude, List<Company> custom, String innCustomer, Long country, boolean winnerExclude, List<Company> winner, BigDecimal minSum, BigDecimal maxSum, String ids_string, String bicotender_string, boolean numberShow, List<ProductReceived> product, List<Region> region, List<District> district) {
+    public SearchParameters(Long id, String nickname, String name, ZonedDateTime dateStart, ZonedDateTime dateFinish, boolean dublicate, boolean quarter, boolean typeExclude, List<TypeTender> type, boolean customExclude, List<Company> custom, String innCustomer, Long country, boolean winnerExclude, List<Company> winner, BigDecimal minSum, BigDecimal maxSum, String ids_string, String bicotender_string, boolean numberShow, List<ProductReceived> product, List<Region> region, List<District> district,boolean plan_schedule, boolean realized, boolean adjacent_tender, boolean private_search) {
         this.id = id;
         this.nickname = nickname;
         this.name = name;
@@ -67,6 +70,10 @@ public class SearchParameters {
         this.product = product;
         this.regions = region;
         this.districts = district;
+        this.plan_schedule = plan_schedule;
+        this.realized = realized;
+        this.adjacent_tender = adjacent_tender;
+        this.private_search = private_search;
     }
 
     public Long getId() {
@@ -269,6 +276,46 @@ public class SearchParameters {
         this.districts = districts;
     }
 
+    public void setRegions(List<Region> regions) {
+        this.regions = regions;
+    }
+
+    public void setDistricts(List<District> districts) {
+        this.districts = districts;
+    }
+
+    public boolean isPlan_schedule() {
+        return plan_schedule;
+    }
+
+    public void setPlan_schedule(boolean plan_schedule) {
+        this.plan_schedule = plan_schedule;
+    }
+
+    public boolean isRealized() {
+        return realized;
+    }
+
+    public void setRealized(boolean realized) {
+        this.realized = realized;
+    }
+
+    public boolean isAdjacent_tender() {
+        return adjacent_tender;
+    }
+
+    public void setAdjacent_tender(boolean adjacent_tender) {
+        this.adjacent_tender = adjacent_tender;
+    }
+
+    public boolean isPrivate_search() {
+        return private_search;
+    }
+
+    public void setPrivate_search(boolean private_search) {
+        this.private_search = private_search;
+    }
+
     @Override
     public String toString() {
         return "SearchParameters{" +
@@ -295,8 +342,12 @@ public class SearchParameters {
                 ", bicotender_string='" + bicotender_string + '\'' +
                 ", numberShow=" + numberShow +
                 ", product=" + product +
-                ", regionList=" + regions +
-                ", districtList=" + districts +
+                ", regions=" + regions +
+                ", districts=" + districts +
+                ", plan_schedule=" + plan_schedule +
+                ", realized=" + realized +
+                ", adjacent_tender=" + adjacent_tender +
+                ", private_search=" + private_search +
                 '}';
     }
 }

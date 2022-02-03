@@ -36,7 +36,7 @@ public class ReportService {
         quarterYear.add(new Integer[]{10,11,12});
     }
 
-    public ArrayList<ReportQuarter> getQuartalTenderReport ( Long category,  ReceivedJSON json) {
+    public ArrayList<ReportQuarter> getQuartalTenderReport ( Long category,  SearchParameters json) {
         ArrayList<ReportQuarter> reportQuarters = new ArrayList<>();
         Map<String,String> tender = this.tenders(json);
         if(tender != null) {
@@ -65,7 +65,7 @@ public class ReportService {
         }
     }
 
-    public ArrayList<ReportQuarter> getQuartalTenderReportBigCategory ( Long bigcategory,  ReceivedJSON json) {
+    public ArrayList<ReportQuarter> getQuartalTenderReportBigCategory ( Long bigcategory,  SearchParameters json) {
         ArrayList<ReportQuarter> reportQuarters = new ArrayList<>();
         Map<String,String> tender = this.tenders(json);
         if(tender != null) {
@@ -97,7 +97,7 @@ public class ReportService {
         }
     }
 
-    private Map<String,String> tenders (ReceivedJSON json){
+    private Map<String,String> tenders (SearchParameters json){
         String tenders;
         int year = ZonedDateTime.now().getYear();
         int quartal = ZonedDateTime.now().get(IsoFields.QUARTER_OF_YEAR);
@@ -213,7 +213,7 @@ public class ReportService {
         return a;
     }
 
-    public ArrayList<ReportVendorQuarter>getQuartalVendorReport (Long category,  ReceivedJSON json){
+    public ArrayList<ReportVendorQuarter>getQuartalVendorReport (Long category,  SearchParameters json){
         ArrayList<ReportVendorQuarter> reportVendorQuarters = new ArrayList<>();
         Map<String,String> tender = this.tenders(json);
 
@@ -287,7 +287,7 @@ public class ReportService {
 
     }
 
-    public ArrayList<ReportVendorQuarter>getQuartalVendorReportBigCategory (Long bigCategory,  ReceivedJSON json){
+    public ArrayList<ReportVendorQuarter>getQuartalVendorReportBigCategory (Long bigCategory,  SearchParameters json){
         ArrayList<ReportVendorQuarter> reportVendorQuarters = new ArrayList<>();
         Map<String,String> tender = this.tenders(json);
         if(tender != null){
@@ -363,7 +363,7 @@ public class ReportService {
 
     }
 
-    public ArrayList<ReportVendorQuarter> getQuartalNoVendorReport ( Long category, ReceivedJSON json) {
+    public ArrayList<ReportVendorQuarter> getQuartalNoVendorReport ( Long category, SearchParameters json) {
         ArrayList<ReportVendorQuarter> reportVendorQuarters = new ArrayList<>();
         Map<String, String> tender = this.tenders(json);
 
@@ -429,7 +429,7 @@ public class ReportService {
         }
     }
 
-    public ArrayList<ReportVendorQuarter> getQuartalNoVendorReportBigCategory ( Long bigCategory, ReceivedJSON json) {
+    public ArrayList<ReportVendorQuarter> getQuartalNoVendorReportBigCategory ( Long bigCategory, SearchParameters json) {
         ArrayList<ReportVendorQuarter> reportVendorQuarters = new ArrayList<>();
         Map<String, String> tender = this.tenders(json);
 
@@ -502,7 +502,7 @@ public class ReportService {
         }
     }
 
-    public ArrayList<ReportVendorQuarter>getQuartalCustomerReport ( Long company,ReceivedJSON json){
+    public ArrayList<ReportVendorQuarter>getQuartalCustomerReport ( Long company,SearchParameters json){
         ArrayList<ReportVendorQuarter> reportVendorQuarters = new ArrayList<>();
         Map<String,String> tender = this.tenders(json);
         if(tender != null){
@@ -574,7 +574,7 @@ public class ReportService {
 
     }
 
-    public List<String> getQuartal (  ReceivedJSON json) {
+    public List<String> getQuartal (  SearchParameters json) {
         List<String> Quartal = new LinkedList<>();
         Map<String,String> tender = this.tenders(json);
         if(tender != null) {

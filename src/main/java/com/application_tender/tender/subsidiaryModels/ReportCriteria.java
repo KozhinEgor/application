@@ -3,15 +3,15 @@ package com.application_tender.tender.subsidiaryModels;
 import java.time.ZonedDateTime;
 
 public class ReportCriteria {
-   private ReceivedJSON receivedJSON;
+   private SearchParameters searchParameters;
    private String interval;
 
-   public ReceivedJSON getReceivedJSON() {
-      return receivedJSON;
+   public SearchParameters getSearchParameters() {
+      return searchParameters;
    }
 
-   public void setReceivedJSON(ReceivedJSON receivedJSON) {
-      this.receivedJSON = receivedJSON;
+   public void setSearchParameters(SearchParameters searchParameters) {
+      this.searchParameters = searchParameters;
    }
 
    public String getInterval() {

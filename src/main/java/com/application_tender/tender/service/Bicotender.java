@@ -17,7 +17,6 @@ public class Bicotender {
         JSONObject ob = new JSONObject();
         String in = null;
 
-
         try {
             org.apache.commons.httpclient.HttpClient client = new HttpClient();
             GetMethod method = new GetMethod(url+number + account);

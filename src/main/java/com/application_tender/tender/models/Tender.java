@@ -51,6 +51,11 @@ public class Tender {
 
     private String winner_inn;
 
+    private boolean plan;
+
+    private String tender_plan;
+
+    private String tender_dublicate;
     public Tender() {
     }
 
@@ -240,6 +245,30 @@ public class Tender {
         this.winner_inn = winner_inn;
     }
 
+    public boolean isPlan() {
+        return plan;
+    }
+
+    public void setPlan(boolean plan) {
+        this.plan = plan;
+    }
+
+    public String getTender_plan() {
+        return tender_plan;
+    }
+
+    public void setTender_plan(String tender_plan) {
+        this.tender_plan = tender_plan;
+    }
+
+    public String getTender_dublicate() {
+        return tender_dublicate;
+    }
+
+    public void setTender_dublicate(String tender_dublicate) {
+        this.tender_dublicate = tender_dublicate;
+    }
+
     @Override
     public String toString() {
         return "Tender{" +
@@ -266,6 +295,9 @@ public class Tender {
                 ", country='" + country + '\'' +
                 ", winner_country='" + winner_country + '\'' +
                 ", winner_inn='" + winner_inn + '\'' +
+                ", plan=" + plan +
+                ", tender_plan='" + tender_plan + '\'' +
+                ", tender_dublicate='" + tender_dublicate + '\'' +
                 '}';
     }
 }

@@ -22,7 +22,8 @@ public interface TableMapper {
     @Select("Select id from tender where number_tender = #{number_tender}")
     Long findTenderByNumber_tender(String number_tender);
 
-    @Select("Select " + atributTender +", w.inn as winner_inn, winner_country.name as winner_country"+
+    @Select("Select distinct tender.id,name_tender, bico_tender,gos_zakupki,date_start, date_finish,date_tranding ,number_tender,  full_sum, win_sum, currency, tender.price, rate, sum, c.name as customer, c.inn as inn, type as typetender, w.id as winner, product, dublicate, country.name as country, w.inn as winner_inn, winner_country.name as winner_country, " +
+            "(Select GROUP_CONCAT(tender_plan.tender_plan separator ' ') from tender_plan where tender_plan.tender = tender.id) as tender_plan, "+"(Select GROUP_CONCAT(tender_dublicate.tender_dublicate separator ' ') from tender_dublicate where tender_dublicate.tender = tender.id) as tender_dublicate "+
             " from tender left join customer c on c.id = tender.customer left join typetender t on t.id = tender.typetender left join winner w on w.id = tender.winner left join country on c.country = country.id left join country as winner_country on w.country = winner_country.id where tender.id = #{id}")
     Tender findTenderbyId(Long id);
 
@@ -39,6 +40,15 @@ public interface TableMapper {
     @Select("Select number_tender from tender where customer = #{customer} limit 1")
     String BicoNumberbyCustomer(Long customer);
 
+    @Select("Select distinct tender.id,name_tender, bico_tender,gos_zakupki,date_start, date_finish,date_tranding ,number_tender,  full_sum, win_sum, currency, tender.price, rate, sum, c.name as customer, c.inn as inn, type as typetender, w.id as winner, product, dublicate, country.name as country, w.inn as winner_inn, winner_country.name as winner_country"+
+            " from tender left join customer c on c.id = tender.customer left join typetender t on t.id = tender.typetender left join winner w on w.id = tender.winner left join country on c.country = country.id left join country as winner_country on w.country = winner_country.id" +
+            " where (INSTR('${name_tender}', SUBSTRING(tender.name_tender,1,length(name_tender)-3))) and (tender.date_start >= date_sub('${date}', interval 3 month)) and (c.inn = #{inn}) and (tender.full_sum = #{full_sum}) and (tender.id <> #{id})" )
+    List<Tender> SelectNameDublicate(BigDecimal full_sum,String name_tender,String inn, String date, Long id);
+
+    @Select("Select distinct tender.id,name_tender, bico_tender,gos_zakupki,date_start, date_finish,date_tranding ,number_tender,  full_sum, win_sum, currency, tender.price, rate, sum, c.name as customer, c.inn as inn, type as typetender, w.id as winner, product, dublicate, country.name as country, w.inn as winner_inn, winner_country.name as winner_country"+
+            " from tender left join customer c on c.id = tender.customer left join typetender t on t.id = tender.typetender left join winner w on w.id = tender.winner left join country on c.country = country.id left join country as winner_country on w.country = winner_country.id" +
+            " where (tender.date_start >= date_sub('${date}', interval 3 month)) and (c.inn = #{inn}) and (tender.full_sum = #{full_sum}) order by date_start DESC " )
+    List<Tender> SelectDublicate(BigDecimal full_sum,String inn, String date);
     ///
     @Select("Select " + atributTender +
             " from tender" +
@@ -70,7 +80,13 @@ public interface TableMapper {
     @Update("Update tender set name_tender =#{name_tender} where tender.id = #{tender}")
     void changeNameTender(Long tender, String name_tender);
 
-    @Delete("DELETE FROM tender where id = #{id} limit 1")
+    @Update("Update tender set dublicate = 1 where tender.id = #{id}")
+    void changeDublicate(Long id);
+
+    @Update("Update tender set dublicate = 0 where tender.id = #{id}")
+    void deleteDublicate(Long id);
+
+    @Delete("DELETE FROM tender where tender.id = #{id} limit 1")
     void DeleteTender(Long id);
 
     ///////////////////////////////////////////////////////////
@@ -103,6 +119,45 @@ public interface TableMapper {
 
     @Delete("DELETE FROM adjacent_tender where id = #{id} limit 1")
     void DeleteAdjacentTender(Long id);
+
+    ///////////////////////////////////////////////////////////
+//              PlanTender SQL plan_schedule_tender
+///////////////////////////////////////////////////////////
+    @Select("Select id from plan_schedule_tender where number_tender = #{number_tender}")
+    Long findPlanTenderByNumber_tender(String number_tender);
+
+    @Select("Select " + atributAdjacentTender + ",true as plan, (Select GROUP_CONCAT(tender_plan.tender separator ' ') from tender_plan where tender_plan.tender_plan = tender.id) as tender_plan "+
+            " from plan_schedule_tender as tender left join customer c on c.id = tender.customer left join typetender t on t.id = tender.typetender left join country on c.country = country.id  where tender.id = #{id}")
+    Tender findPlanTenderbyId(Long id);
+
+    @Select("Select id from plan_schedule_tender where customer = #{customer}")
+    List<Long> findPlanTenderByCustomer(Long customer);
+
+    @Select("Select " + atributAdjacentTender +",true as plan, (Select GROUP_CONCAT(tender_plan.tender separator ' ') from tender_plan where tender_plan.tender_plan = tender.id) as tender_plan "+
+            " from plan_schedule_tender as tender left join customer c on c.id = tender.customer left join typetender t on t.id = tender.typetender left join country on c.country = country.id " +
+            " ${where} order by date_start")
+    List<Tender> findAllPlanTenderTerms(String where);
+
+    @Select("Select " + atributAdjacentTender +",true as plan, (Select GROUP_CONCAT(tender_plan.tender separator ' ') from tender_plan where tender_plan.tender_plan = tender.id) as tender_plan "+
+            " from plan_schedule_tender as tender left join customer c on c.id = tender.customer left join typetender t on t.id = tender.typetender left join country on c.country = country.id " +
+            " where  (tender.full_sum = #{full_sum}) and (INSTR('${name_tender}'," +
+            " SUBSTRING(tender.name_tender,1,Position('(План График)' in tender.name_tender)-3))) and (tender.date_start <= date_add('${date}', interval 7 day)) and (c.inn = #{inn})")
+    List<Tender> SelectNameDublicatePlan(BigDecimal full_sum,String name_tender,String inn, String date);
+
+
+    @Insert("insert into plan_schedule_tender (name_tender, bico_tender,gos_zakupki,date_start, date_finish,date_tranding,number_tender,  full_sum, currency, price, rate, sum, customer, typetender) " +
+            "values (#{name_tender}, #{bico_tender},#{gos_zakupki},#{date_start}, #{date_finish},#{date_tranding},#{number_tender},  #{full_sum}, #{currency}, #{price}, #{rate}, #{sum}, #{customer}, #{typetender}) ")
+    void insertPlanTender(String name_tender, String bico_tender, String gos_zakupki, ZonedDateTime date_start, ZonedDateTime date_finish, ZonedDateTime date_tranding, String number_tender, BigDecimal full_sum, String currency, BigDecimal price, Double rate, BigDecimal sum, Long customer, Long typetender);
+
+    @Update("Update plan_schedule_tender set customer = #{customer} where plan_schedule_tender.id = #{tender}")
+    void changeCustomerPlanTender(Long tender, Long customer);
+
+    @Update("Update plan_schedule_tender set  name_tender =#{name_tender} , bico_tender=#{bico_tender},gos_zakupki=#{gos_zakupki},date_start=#{date_start}, date_finish=#{date_finish},date_tranding=#{date_tranding} ,number_tender=#{number_tender},  full_sum=#{full_sum}, currency=#{currency}, price=#{price}, rate=#{rate}, sum=#{sum}, customer=#{customer}, typetender=#{typetender}, dublicate=#{dublicate} where id = #{id}")
+    void UpdatePlanTender(Long id, String name_tender, String bico_tender, String gos_zakupki, ZonedDateTime date_start, ZonedDateTime date_finish, ZonedDateTime date_tranding, String number_tender, BigDecimal full_sum, String currency, BigDecimal price, double rate, BigDecimal sum, Long customer, Long typetender, Boolean dublicate);
+
+
+    @Delete("DELETE FROM plan_schedule_tender where id = #{id} limit 1")
+    void DeletePlanTender(Long id);
 
     ///////////////////////////////////////////////////////////
 //              ProductCategory SQL
@@ -383,6 +438,9 @@ public interface TableMapper {
 
     @Select("Select name from winner where id = #{id} limit 1")
     String findWinnerNameById(Long id);
+
+    @Select("Select winner.id,winner.name,c.name as country, winner.inn from winner left join country as c on c.id = winner.country where winner.inn = #{inn}")
+    Company findCompany(String inn);
 
     @Insert("Insert into winner (inn,name, country) values (#{inn},#{name},#{country})")
     void insertWinner(String inn, String name, Long country);
@@ -666,10 +724,10 @@ public interface TableMapper {
     Long idSearchParametersByName(String name);
     @Select("Select count(*) from search_parameters where id = #{id}")
     Integer countSearchParametersById(Long id);
-    @Insert("Insert into search_parameters (nickname,name,dateStart,dateFinish,dublicate,typeExclude,type,customExclude,custom,innCustomer,country,winnerExclude,winner,minSum,maxSum,ids,bicotender,numberShow,product, region, district) values (#{nickname}, #{name},#{dateStart},#{dateFinish},#{dublicate},#{typeExclude},#{type},#{customExclude},#{custom},#{innCustomer},#{country},#{winnerExclude},#{winner},#{minSum},#{maxSum},#{ids},#{bicotender},#{numberShow},#{product},#{region},#{district})")
-    void saveParameters(String nickname, String name,ZonedDateTime dateStart,ZonedDateTime dateFinish,Boolean dublicate,Boolean typeExclude, String type,Boolean customExclude,String custom,String innCustomer,Long country, Boolean winnerExclude, String winner,BigDecimal minSum, BigDecimal maxSum,String ids, String bicotender,Boolean numberShow,String product, String region,String district);
-    @Update("Update search_parameters set nickname=#{nickname}, name=#{name}, dateStart=#{dateStart}, dateFinish=#{dateFinish}, dublicate = #{dublicate}, typeExclude = #{typeExclude}, type = #{type}, customExclude = #{customExclude}, custom = #{custom}, innCustomer = #{innCustomer}, country = #{country}, winnerExclude= #{winnerExclude}, winner = #{winner}, minSum = #{minSum}, maxSum = #{maxSum}, ids = #{ids}, bicotender = #{bicotender}, numberShow = #{numberShow}, product = #{product},region = #{region},district = #{district} where id = #{id}")
-    void updateParameters(Long id,String nickname, String name,ZonedDateTime dateStart,ZonedDateTime dateFinish,Boolean dublicate,Boolean typeExclude, String type,Boolean customExclude,String custom,String innCustomer,Long country, Boolean winnerExclude, String winner,BigDecimal minSum, BigDecimal maxSum,String ids, String bicotender,Boolean numberShow,String product, String region,String district);
+    @Insert("Insert into search_parameters (nickname,name,dateStart,dateFinish,dublicate,typeExclude,type,customExclude,custom,innCustomer,country,winnerExclude,winner,minSum,maxSum,ids,bicotender,numberShow,product, region, district,plan_schedule,realized,adjacent_tender,private_search) values (#{nickname}, #{name},#{dateStart},#{dateFinish},#{dublicate},#{typeExclude},#{type},#{customExclude},#{custom},#{innCustomer},#{country},#{winnerExclude},#{winner},#{minSum},#{maxSum},#{ids},#{bicotender},#{numberShow},#{product},#{region},#{district},#{plan_schedule},#{realized},#{adjacent_tender},#{private_search})")
+    void saveParameters(String nickname, String name,ZonedDateTime dateStart,ZonedDateTime dateFinish,Boolean dublicate,Boolean typeExclude, String type,Boolean customExclude,String custom,String innCustomer,Long country, Boolean winnerExclude, String winner,BigDecimal minSum, BigDecimal maxSum,String ids, String bicotender,Boolean numberShow,String product, String region,String district, Boolean plan_schedule,Boolean realized,Boolean adjacent_tender,Boolean private_search);
+    @Update("Update search_parameters set nickname=#{nickname}, name=#{name}, dateStart=#{dateStart}, dateFinish=#{dateFinish}, dublicate = #{dublicate}, typeExclude = #{typeExclude}, type = #{type}, customExclude = #{customExclude}, custom = #{custom}, innCustomer = #{innCustomer}, country = #{country}, winnerExclude= #{winnerExclude}, winner = #{winner}, minSum = #{minSum}, maxSum = #{maxSum}, ids = #{ids}, bicotender = #{bicotender}, numberShow = #{numberShow}, product = #{product},region = #{region},district = #{district},plan_schedule = #{plan_schedule},realized = #{realized},adjacent_tender = #{adjacent_tender},private_search = #{private_search} where id = #{id}")
+    void updateParameters(Long id,String nickname, String name,ZonedDateTime dateStart,ZonedDateTime dateFinish,Boolean dublicate,Boolean typeExclude, String type,Boolean customExclude,String custom,String innCustomer,Long country, Boolean winnerExclude, String winner,BigDecimal minSum, BigDecimal maxSum,String ids, String bicotender,Boolean numberShow,String product, String region,String district, Boolean plan_schedule,Boolean realized,Boolean adjacent_tender,Boolean private_search);
     @Delete("Delete from search_parameters where id = #{id}")
     void deleteSearchParametersById(Long id);
 ///////////////////////////////////////////////////////////
@@ -684,5 +742,25 @@ public interface TableMapper {
     List<District> selectDistrict();
     @Select("Select region.number from region_district left join region on region = region.id where district = #{idDistrict}")
     String[] regionInDistrict(Long idDistrict);
-}
 
+///////////////////////////////////////////////////////////
+//              Tender_dublicate SQL
+///////////////////////////////////////////////////////////
+    @Select("Select id from tender_dublicate where tender = #{id} and tender_dublicate = #{id_d}")
+    Long CheckDublicate(Long id, Long id_d);
+    @Insert("Insert into tender_dublicate (tender,tender_dublicate) values (#{id},#{id_d})")
+    void insertDublicate(Long id, Long id_d);
+    @Delete("Delete from tender_dublicate where tender_dublicate = #{id}")
+    void delete_tender_Dublicate(Long id);
+    ///////////////////////////////////////////////////////////
+//              Tender_plane SQL
+///////////////////////////////////////////////////////////
+    @Select("Select id from tender_plan where tender = #{id} and tender_plan = #{id_d}")
+    Long CheckPlane(Long id, Long id_d);
+    @Select("Select tender_plan from tender_plan")
+    List<Long> AllIdPlan();
+    @Insert("Insert into tender_plan (tender,tender_plan) values (#{id},#{id_d})")
+    void insertPlane(Long id, Long id_d);
+    @Delete("Delete from tender_plan where tender_plan = #{id}")
+    void delete_tender_Plane(Long id);
+}

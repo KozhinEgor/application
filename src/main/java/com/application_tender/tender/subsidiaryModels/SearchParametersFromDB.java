@@ -32,7 +32,10 @@ public class SearchParametersFromDB {
     private String product;
     private String region;
     private String district;
-
+    private boolean plan_schedule;
+    private boolean realized;
+    private boolean adjacent_tender;
+    private boolean private_search;
     public SearchParametersFromDB() {
     }
 
@@ -218,5 +221,37 @@ public class SearchParametersFromDB {
 
     public void setDistrict(String district) {
         this.district = district;
+    }
+
+    public boolean isPlan_schedule() {
+        return plan_schedule;
+    }
+
+    public void setPlan_schedule(boolean plan_schedule) {
+        this.plan_schedule = plan_schedule;
+    }
+
+    public boolean isRealized() {
+        return realized;
+    }
+
+    public void setRealized(boolean realized) {
+        this.realized = realized;
+    }
+
+    public boolean isAdjacent_tender() {
+        return adjacent_tender;
+    }
+
+    public void setAdjacent_tender(boolean adjacent_tender) {
+        this.adjacent_tender = adjacent_tender;
+    }
+
+    public boolean isPrivate_search() {
+        return private_search;
+    }
+
+    public void setPrivate_search(boolean private_search) {
+        this.private_search = private_search;
     }
 }
