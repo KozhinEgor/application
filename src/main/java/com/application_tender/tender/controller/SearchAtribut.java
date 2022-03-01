@@ -68,8 +68,8 @@ public class SearchAtribut {
 
             if(product.getVendor_code() != null && product.getVendor_code().length != 0){
                 for(Product product1 : product.getVendor_code()){
-                    whereProduct = whereProduct + (whereProduct.equals("(") ? " pr.product_category =" + product.getCategory()[0].getId() + " and pr.id_product =" + product1.getId() :
-                            " or pr.product_category =" + product.getCategory()[0].getId() + " and pr.id_product =" + product1.getId());
+                    whereProduct = whereProduct + (whereProduct.equals("(") ? " pr.id ="  + product1.getId() :
+                            " or pr.pid =" + product1.getId());
                 }
                 where =where + whereProduct + ") or";
                 continue;
@@ -166,12 +166,16 @@ public class SearchAtribut {
             }
 
         }
-        if (json.getInnCustomer() != null && json.getInnCustomer().length() != 0) {
-            if (json.isCustomExclude()) {
-                where = where + (where.equals("where") ? " c.inn not like \"" + json.getInnCustomer().trim() + "\"" : " and c.inn not like \"" + json.getInnCustomer().trim() + "\"");
-            } else {
-                where = where + (where.equals("where") ? " c.inn like \"" + json.getInnCustomer().trim() + "\"" : " and c.inn like \"" + json.getInnCustomer().trim() + "\"");
+        if (json.getInnCustomer() != null && json.getInnCustomer().length != 0) {
+            where = where + (where.equals("where") ? "(":" and (");
+            for(String inn : json.getInnCustomer()){
+                if (json.isCustomExclude()) {
+                    where = where + " c.inn not like \"" + inn + "\" or";
+                } else {
+                    where = where +" c.inn like \"" + inn + "\" or";
+                }
             }
+            where = where.substring(0,where.length()-2)+")";
         }
         if (json.getCountry() != null && json.getCountry() != null) {
             if (json.isCustomExclude()) {
@@ -232,7 +236,7 @@ public class SearchAtribut {
                 idTender = idTender + a.toString() + ',';
             }
             if(!idTender.equals("")) {
-                where = where + (where.equals("where") ? " tender.id not in(" + idTender.substring(0, idTender.length() - 1) +")": "and  tender.id not in(" + idTender.substring(0, idTender.length() - 1)+")");
+                where = where + (where.equals("where") ? " tender.id not in(" + idTender.substring(0, idTender.length() - 1) +")": " and  tender.id not in(" + idTender.substring(0, idTender.length() - 1)+")");
             }
         }
         if (json.getProduct() != null && json.getProduct().size() != 0) {
@@ -253,6 +257,40 @@ public class SearchAtribut {
             return where;
         }
     }
+
+    public String orderTender(Long page, String sortName, String sortDirection, Long pageSize){
+        switch (sortName){
+            case "id":
+                sortName = "tender.id";
+                break;
+            case "nameTender":
+                sortName = "tender.name_tender";
+                break;
+            case "customer":
+                sortName = "c.name";
+                break;
+            case "typetender":
+                sortName = "t.type";
+                break;
+            case "sum":
+                sortName = "tender.sum";
+                break;
+            case "dateStart":
+                sortName = "tender.date_start";
+                break;
+            case "dateFinish":
+                sortName = "tender.date_finish";
+                break;
+            case "winSum":
+                sortName = "tender.win_sum";
+                break;
+            case "winner":
+                sortName = "w.name";
+                break;
+        }
+        return (sortDirection.equals("")?"":" order by " + sortName + " "+ sortDirection)+ " limit " + pageSize + " offset " + page*pageSize;
+    }
+
     public String WhereWithoutProduct(SearchParameters json) {
         String where = "where";
         if (json.getDateStart() != null) {
@@ -287,12 +325,16 @@ public class SearchAtribut {
             }
 
         }
-        if (json.getInnCustomer() != null && json.getInnCustomer().length() != 0) {
-            if (json.isCustomExclude()) {
-                where = where + (where.equals("where") ? " c.inn not like \"" + json.getInnCustomer().trim() + "\"" : " and c.inn not like \"" + json.getInnCustomer().trim() + "\"");
-            } else {
-                where = where + (where.equals("where") ? " c.inn like \"" + json.getInnCustomer().trim() + "\"" : " and c.inn like \"" + json.getInnCustomer().trim() + "\"");
+        if (json.getInnCustomer() != null && json.getInnCustomer().length != 0) {
+            where = where + (where.equals("where") ? "(":" and (");
+            for(String inn : json.getInnCustomer()){
+                if (json.isCustomExclude()) {
+                    where = where + " c.inn not like \"" + inn + "\" or";
+                } else {
+                    where = where +" c.inn like \"" + inn + "\" or";
+                }
             }
+            where = where.substring(0,where.length()-2)+")";
         }
         if (json.getCountry() != null && json.getCountry() != null) {
             if (json.isCustomExclude()) {
@@ -354,6 +396,7 @@ public class SearchAtribut {
             return where;
         }
     }
+
     public String ParametrsWithoutProductAndDate(SearchParameters json) {
         String where = "where";
         if (json.getType() != null && json.getType().size() != 0) {
@@ -381,12 +424,16 @@ public class SearchAtribut {
             }
 
         }
-        if (json.getInnCustomer() != null && json.getInnCustomer().length() != 0) {
-            if (json.isCustomExclude()) {
-                where = where + (where.equals("where") ? " c.inn not like \"" + json.getInnCustomer().trim() + "\"" : " and c.inn not like \"" + json.getInnCustomer().trim() + "\"");
-            } else {
-                where = where + (where.equals("where") ? " c.inn like \"" + json.getInnCustomer().trim() + "\"" : " and c.inn like \"" + json.getInnCustomer().trim() + "\"");
+        if (json.getInnCustomer() != null && json.getInnCustomer().length != 0) {
+            where = where + (where.equals("where") ? "(":" and (");
+            for(String inn : json.getInnCustomer()){
+                if (json.isCustomExclude()) {
+                    where = where + " c.inn not like \"" + inn + "\" or";
+                } else {
+                    where = where +" c.inn like \"" + inn + "\" or";
+                }
             }
+            where = where.substring(0,where.length()-2)+")";
         }
         if (json.getCountry() != null && json.getCountry() != null) {
             if (json.isCustomExclude()) {
@@ -448,73 +495,35 @@ public class SearchAtribut {
             return where;
         }
     }
+
     public String createSelectProductCategory(Long id) {
-        String select = "Select";
-        Boolean flag = false;
-        Boolean flag_Subcategory = false;
-        String category = tableMapper.findNameCategoryById(id);
-        String[] columns = tableMapper.findcolumnName(category);
-//        Select pr.id, vendor_code, frequency,vendor as vendor_id, usb, vxi, channel, name as vendor from oscilloscope as pr left join vendor v on pr.vendor = v.id
-        for (String column : columns) {
-            if (column.equals("vendor")) {
-                select = select + " pr." + column + " as vendor_id,";
-                flag = true;
-            } else if (column.equals("subcategory")) {
-                select = select + " pr." + column + " as subcategory_id,";
-                flag_Subcategory = true;
-            } else {
-                select = select + " pr." + column + ",";
-            }
+        String select="";
+        if(id == 0L){
+            select = "Select pr.id,pr.subcategory as subcategory_id, s.name as subcategory,pr.product_category as product_category_id, prcat.category as product_category,pr.vendor_code,v.name as vendor, pr.vendor as vendor_id," +
+                    " pr.frequency,pr.usb,pr.vxi,pr.portable,pr.channel,pr.port,pr.form_factor,pr.purpose,pr.voltage,pr.current from product as pr" +
+                    " left join vendor as v on pr.vendor = v.id left join subcategory as s on pr.subcategory = s.id left join product_category as prcat on pr.product_category = prcat.id order by product_category,pr.vendor,vendor_code";
+        }
+        else{
+            select = "Select pr.id,pr.subcategory as subcategory_id, s.name as subcategory,pr.product_category as product_category_id, prcat.category as product_category, pr.vendor_code,v.name as vendor, pr.vendor as vendor_id," +
+                    " pr.frequency,pr.usb,pr.vxi,pr.portable,pr.channel,pr.port,pr.form_factor,pr.purpose,pr.voltage,pr.current from product as pr" +
+                    " left join vendor as v on pr.vendor = v.id left join subcategory as s on pr.subcategory = s.id left join product_category as prcat on pr.product_category = prcat.id where pr.product_category = "+id + " order by pr.vendor,vendor_code";
 
-        }
-        if (flag) {
-            select = select + " v.name as vendor,";
-        }
-        if (flag_Subcategory) {
-            select = select + " s.name as subcategory,";
-        }
-
-        select = select + "(select GROUP_CONCAT(`name` separator ' ')  from options_product left join options on options_product.options = options.id where id_product = pr.id and product_category ="+id+") as options from " + category + " as pr";
-        if (flag) {
-            select = select + " left join vendor as v on pr.vendor = v.id";
-        }
-        if (flag_Subcategory) {
-            select = select + " left join subcategory as s on pr.subcategory = s.id";
-        }
-        if (flag) {
-            select = select + " order by pr.vendor,vendor_code ";
-        } else {
-            select = select + " order by vendor_code";
         }
         return select;
     }
 
     public String createSelectProductNoUses(Long id) {
-        String select = "Select";
-        boolean flag = false;
-        String category = tableMapper.findNameCategoryById(id);
-        String[] columns = tableMapper.findcolumnName(category);
-//        Select pr.id, vendor_code, frequency,vendor as vendor_id, usb, vxi, channel, name as vendor from oscilloscope as pr left join vendor v on pr.vendor = v.id
-        for (String column : columns) {
-            if (column.equals("vendor")) {
-                select = select + " pr." + column + " as vendor_id,";
-                flag = true;
-            } else {
-                select = select + " pr." + column + ",";
-            }
+        String select="";
+        if(id == 0L){
+            select = "Select pr.id,pr.subcategory as subcategory_id, s.name as subcategory,pr.product_category as product_category_id, prcat.category as product_category, pr.vendor_code,v.name as vendor, pr.vendor as vendor_id," +
+                    " pr.frequency,pr.usb,pr.vxi,pr.portable,pr.channel,pr.port,pr.form_factor,pr.purpose,pr.voltage,pr.current from product as pr" +
+                    " left join vendor as v on pr.vendor = v.id left join subcategory as s on pr.subcategory = s.id left join product_category as prcat on pr.product_category = prcat.id where pr.id not in (Select distinct product from keysight.orders) order by pr.vendor,vendor_code";
+        }
+        else{
+             select = "Select pr.id,pr.subcategory as subcategory_id, s.name as subcategory,pr.product_category as product_category_id, prcat.category as product_category, pr.vendor_code,v.name as vendor, pr.vendor as vendor_id," +
+                    " pr.frequency,pr.usb,pr.vxi,pr.portable,pr.channel,pr.port,pr.form_factor,pr.purpose,pr.voltage,pr.current from product as pr" +
+                    " left join vendor as v on pr.vendor = v.id left join subcategory as s on pr.subcategory = s.id left join product_category as prcat on pr.product_category = prcat.id where pr.id not in (Select distinct product from keysight.orders where product_category = '" + id + "') and product_category ='"+id+"' order by pr.vendor,vendor_code";
 
-        }
-        if (flag) {
-            select = select + " v.name as vendor from " + category + " as pr left join vendor as v on pr.vendor = v.id ";
-        } else {
-            select = select.substring(0, select.length() - 1);
-            select = select + " from " + category + " as pr";
-        }
-        select = select + " where pr.id not in (Select distinct id_product  from keysight.orders where product_category = '" + id + "')";
-        if (flag) {
-            select = select + "order by pr.vendor, vendor_code";
-        } else {
-            select = select + " order by vendor_code";
         }
         return select;
     }
@@ -551,69 +560,102 @@ public class SearchAtribut {
     }
 
     public String UpdateProductTender(Long idTender) {
-        List<OrdersDB> ordersDB = tableMapper.findAllOrdersBDbyTender(idTender);
+        List<Orders> orders = tableMapper.findAllOrdersbyTender(idTender);
         StringBuilder product = new StringBuilder();
-        if (ordersDB != null) {
+        Orders anotherProduct = tableMapper.findAnotherProductbyTender(idTender);
+        if(anotherProduct != null){
+            orders.remove(anotherProduct);
+            orders.add(anotherProduct);
+        }
+        if (orders != null) {
 
-            List<Orders> orders = new LinkedList<Orders>();
-
-            for (OrdersDB orderDB : ordersDB) {
+            for(Orders o : orders){
                 String comment = "";
-                Product product_id = this.ProductToOrders(orderDB.getProduct_category(), orderDB.getId_product());
-                orderDB.setVendor(product_id == null ? Long.valueOf(1) : product_id.getVendor_id());
-                if(product_id == null){
-                    comment = ((orderDB.getOptions() != null && !orderDB.getOptions().equals("")?orderDB.getOptions() + " ":"")
-                            + (orderDB.getPortable() !=null && orderDB.getPortable() ? "портативный " : "")
-                            + (orderDB.getUsb() !=null && orderDB.getUsb()? "USB " : "")
-                            + (orderDB.getVxi() !=null && orderDB.getVxi()? "VXI " : "")
-                            + (orderDB.getFrequency() != null && orderDB.getFrequency() != 0 ?  orderDB.getFrequency() +  "ГГц " : "")
-                            + (orderDB.getChannel()!=null && orderDB.getChannel()!= 0? orderDB.getChannel()+  "кан. " : "")
-                            + (orderDB.getPort()!=null && orderDB.getPort() != 0? orderDB.getPort()+  "порта " : "")
-                            + (orderDB.getForm_factor() != null  && !orderDB.getForm_factor().equals("") ? orderDB.getForm_factor()+" ":"")
-                            + (orderDB.getPurpose() != null && !orderDB.getPurpose().equals("") ? orderDB.getPurpose() + " ":"")
-                            + (orderDB.getVoltage() != null && orderDB.getVoltage() != 0? orderDB.getVoltage()+"В ":"")
-                            + (orderDB.getCurrent() != null && orderDB.getCurrent() != 0? orderDB.getCurrent()+"А ":"")
-                            + orderDB.getComment());
+
+              if (o.getProduct().equals("Без артикула")){
+                   comment = ((o.getOptions() != null && !o.getOptions().equals("")?o.getOptions() + " ":"")
+                            + (o.getPortable() !=null && o.getPortable() ? "портативный " : "")
+                            + (o.getUsb() !=null && o.getUsb()? "USB " : "")
+                            + (o.getVxi() !=null && o.getVxi()? "VXI " : "")
+                            + (o.getFrequency() != null && o.getFrequency() != 0 ?  o.getFrequency() +  "ГГц " : "")
+                            + (o.getChannel()!=null && o.getChannel()!= 0? o.getChannel()+  "кан. " : "")
+                            + (o.getPort()!=null && o.getPort() != 0? o.getPort()+  "порта " : "")
+                            + (o.getForm_factor() != null  && !o.getForm_factor().equals("") ? o.getForm_factor()+" ":"")
+                            + (o.getPurpose() != null && !o.getPurpose().equals("") ? o.getPurpose() + " ":"")
+                            + (o.getVoltage() != null && o.getVoltage() != 0? o.getVoltage()+"В ":"")
+                            + (o.getCurrent() != null && o.getCurrent() != 0? o.getCurrent()+"А ":"")
+                            + o.getComment_DB());
+               }
+              else{
+                    comment = ((o.getOptions() != null && !o.getOptions().equals("")?o.getOptions() + " ":"")
+                            + o.getComment_DB());
                 }
-                else {
-                    comment = ((orderDB.getOptions() != null && !orderDB.getOptions().equals("")?orderDB.getOptions() + " ":"")
-                            + orderDB.getComment());
-                }
-                orders.add(new Orders(orderDB.getTender(),
-                        (orderDB.getProduct_category() != 7 ? tableMapper.findOneCategoryById(orderDB.getProduct_category()) + this.subcategoryProduct(orderDB.getProduct_category(), orderDB.getId_product()) : ""),
-                        product_id == null ? "" : product_id.getVendor_code(),
-                        this.VendorToOrders(orderDB.getProduct_category(), orderDB.getId_product()) == null ? "" :  this.VendorToOrders(orderDB.getProduct_category(), orderDB.getId_product()) + ' ',
-                        comment,
-                        orderDB.getNumber(),
-                        orderDB.getPrice(),
-                        orderDB.getWinprice()));
+              o.setComment(comment);
+              product.append(o.ToDB()).append("; ");
             }
-            for (Orders order : orders) {
-                product.append(order.ToDB()).append("; ");
-            }
+            tableMapper.UpdateProductTender(product.toString(), idTender);
+
+        }
+        else {
             tableMapper.UpdateProductTender(product.toString(), idTender);
         }
         return product.toString();
     }
 
+public List<Orders> generateOrders(Long idTender){
+    List<Orders> orders = tableMapper.findAllOrdersbyTender(idTender);
+    Orders anotherProduct = tableMapper.findAnotherProductbyTender(idTender);
+    if(anotherProduct != null){
+        orders.remove(anotherProduct);
+        orders.add(anotherProduct);
+    }
+    if (orders != null) {
 
-    public BigCategory makeBigCategory(Long big_category) {
-        BigCategory bigCategory = new BigCategory();
-        bigCategory.setBig_category_id(big_category);
-        bigCategory.setBig_category(tableMapper.findBigCategorybyId(big_category));
-        List<Long> categoryId = tableMapper.findCategorybyBigCategory(big_category);
-        if (categoryId == null) {
-            bigCategory.setCategory(null);
-        } else {
-            for (Long id : categoryId) {
-                ProductCategory productCategory = tableMapper.findCategoryById(id);
-                if (productCategory != null) {
+        for(Orders o : orders){
+            String comment = "";
 
-                    bigCategory.addCategory(productCategory);
-                }
-
+            if (o.getProduct().equals("Без артикула")){
+                comment = ((o.getOptions() != null && !o.getOptions().equals("")?o.getOptions() + " ":"")
+                        + (o.getPortable() !=null && o.getPortable() ? "портативный " : "")
+                        + (o.getUsb() !=null && o.getUsb()? "USB " : "")
+                        + (o.getVxi() !=null && o.getVxi()? "VXI " : "")
+                        + (o.getFrequency() != null && o.getFrequency() != 0 ?  o.getFrequency() +  "ГГц " : "")
+                        + (o.getChannel()!=null && o.getChannel()!= 0? o.getChannel()+  "кан. " : "")
+                        + (o.getPort()!=null && o.getPort() != 0? o.getPort()+  "порта " : "")
+                        + (o.getForm_factor() != null  && !o.getForm_factor().equals("") ? o.getForm_factor()+" ":"")
+                        + (o.getPurpose() != null && !o.getPurpose().equals("") ? o.getPurpose() + " ":"")
+                        + (o.getVoltage() != null && o.getVoltage() != 0? o.getVoltage()+"В ":"")
+                        + (o.getCurrent() != null && o.getCurrent() != 0? o.getCurrent()+"А ":"")
+                        + o.getComment_DB());
             }
+            else{
+                comment = ((o.getOptions() != null && !o.getOptions().equals("")?o.getOptions() + " ":"")
+                        + o.getComment_DB());
+            }
+            o.setComment(comment);
         }
-        return bigCategory;
+    }
+
+    return orders;
+}
+
+    String returnItems(Integer num){
+        int rem = num% 100;
+        if(rem<5 || rem>20){
+            rem = rem%10;
+            if(rem == 1) return num.toString()+" наименование";
+            else return num.toString()+" наименования";
+        }
+        else return num.toString()+" наименований";
+    }
+
+    ZonedDateTime startDateByPeriod(String period){
+        switch (period){
+            case "неделя": return ZonedDateTime.now().minusDays(7);
+            case "Месяц" : return ZonedDateTime.now().minusDays(30);
+            case "Квартал" : return ZonedDateTime.now().minusDays(90);
+            case "Год" : return ZonedDateTime.now().minusDays(365);
+            default: return ZonedDateTime.now().minusDays(7);
+        }
     }
 }

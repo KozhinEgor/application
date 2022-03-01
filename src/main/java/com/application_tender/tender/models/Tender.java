@@ -58,6 +58,9 @@ public class Tender {
     private String tender_dublicate;
     public Tender() {
     }
+    public Tender(String name){
+        this.name_tender = name;
+    }
 
     public Long getId() {
         return id;

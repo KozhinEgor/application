@@ -65,37 +65,6 @@ public class ReportService {
         }
     }
 
-    public ArrayList<ReportQuarter> getQuartalTenderReportBigCategory ( Long bigcategory,  SearchParameters json) {
-        ArrayList<ReportQuarter> reportQuarters = new ArrayList<>();
-        Map<String,String> tender = this.tenders(json);
-        if(tender != null) {
-
-            List<Long> CategoryList= tableMapper.findCategorybyBigCategory(bigcategory);
-            String category = "product_category in ("+CategoryList.toString().substring(1,CategoryList.toString().length() - 1)+")";
-
-            String tenders =" and orders.tender in "+ tender.get("tenders");
-            int year = Integer.parseInt(tender.get("year"));
-            int quartal = Integer.parseInt(tender.get("quartal"));
-            int y = Integer.parseInt(tender.get("y"));
-            int q = Integer.parseInt(tender.get("q"));
-            boolean flag = Boolean.parseBoolean(tender.get("flag"));
-
-            while (y != year || q != quartal) {
-
-                reportQuarters.add(0, tableMapper.findForOrders((flag?y+1:y), q, this.dataRangeString(flag, json.isQuarter(), q,y), category, tenders));
-
-
-                Map<String,Integer> n = this.countQuartal(y,q,flag);
-                flag = false;
-                y=n.get("y");
-                q = n.get("q");
-            }
-            return reportQuarters;
-        }
-        else{
-            return reportQuarters;
-        }
-    }
 
     private Map<String,String> tenders (SearchParameters json){
         String tenders;
@@ -287,81 +256,7 @@ public class ReportService {
 
     }
 
-    public ArrayList<ReportVendorQuarter>getQuartalVendorReportBigCategory (Long bigCategory,  SearchParameters json){
-        ArrayList<ReportVendorQuarter> reportVendorQuarters = new ArrayList<>();
-        Map<String,String> tender = this.tenders(json);
-        if(tender != null){
-            List<Long> CategoryList= tableMapper.findCategorybyBigCategory(bigCategory);
-            String category = "product_category in ("+CategoryList.toString().substring(1,CategoryList.toString().length() - 1)+")";
-            String tenders =" and orders.tender in "+ tender.get("tenders");
-            int year = Integer.parseInt(tender.get("year"));
-            int quartal = Integer.parseInt(tender.get("quartal"));
-            int y = Integer.parseInt(tender.get("y"));
-            int q = Integer.parseInt(tender.get("q"));
-            boolean flag = Boolean.parseBoolean(tender.get("flag"));
 
-
-
-
-            while (y != year || q != quartal) {
-                Map<String, Integer> vendorCount = new HashMap<String, Integer>();
-                List<String> vendors = new LinkedList<>();
-
-                for (Long cat: CategoryList){
-                    String category_en = tableMapper.findOneCategoryENById(cat);
-                    vendors = tableMapper.findVendorForOrders(this.dataRangeString(flag, json.isQuarter(), q,y), "product_category = "+cat, category_en, tenders);
-
-                    for (String vendor : vendors) {
-                        if (vendor.equals("No vendor")) {
-                        } else if (!vendorCount.containsKey(vendor)) {
-                            vendorCount.put(vendor, 1);
-                        } else {
-                            vendorCount.put(vendor, vendorCount.get(vendor) + 1);
-                        }
-                    }
-                }
-
-                if (reportVendorQuarters.isEmpty()) {
-                    for (Map.Entry<String, Integer> entry : vendorCount.entrySet()) {
-                        ReportVendorQuarter reportVendorQuarter = new ReportVendorQuarter(entry.getKey());
-                        reportVendorQuarter.getQuarter().put(String.valueOf((flag?y+1:y)) + ' ' + String.valueOf(q), entry.getValue());
-                        reportVendorQuarters.add(reportVendorQuarter);
-
-                    }
-                }
-                else {
-
-                    for (Map.Entry<String, Integer> entry : vendorCount.entrySet()) {
-                        boolean flag2 = false;
-                        for (ReportVendorQuarter reportVendorQuarter : reportVendorQuarters) {
-                            if (reportVendorQuarter.getVendor().equals(entry.getKey())) {
-                                reportVendorQuarter.getQuarter().put(String.valueOf((flag?y+1:y)) + ' ' + String.valueOf(q), entry.getValue());
-                                flag2 = true;
-                            }
-
-                        }
-                        if (!flag2) {
-                            ReportVendorQuarter reportVendorQuarter = new ReportVendorQuarter(entry.getKey());
-                            reportVendorQuarter.getQuarter().put(String.valueOf((flag?y+1:y)) + ' ' + String.valueOf(q), entry.getValue());
-                            reportVendorQuarters.add(reportVendorQuarter);
-                        }
-                    }
-                }
-
-                Map<String,Integer> n = this.countQuartal(y,q,flag);
-                flag = false;
-                y=n.get("y");
-                q = n.get("q");
-
-            }
-            return reportVendorQuarters;
-        }
-        else{
-            return  reportVendorQuarters;
-        }
-
-
-    }
 
     public ArrayList<ReportVendorQuarter> getQuartalNoVendorReport ( Long category, SearchParameters json) {
         ArrayList<ReportVendorQuarter> reportVendorQuarters = new ArrayList<>();
@@ -429,78 +324,7 @@ public class ReportService {
         }
     }
 
-    public ArrayList<ReportVendorQuarter> getQuartalNoVendorReportBigCategory ( Long bigCategory, SearchParameters json) {
-        ArrayList<ReportVendorQuarter> reportVendorQuarters = new ArrayList<>();
-        Map<String, String> tender = this.tenders(json);
 
-        if (tender != null) {
-            List<Long> CategoryList= tableMapper.findCategorybyBigCategory(bigCategory);
-            String category = "product_category in ("+CategoryList.toString().substring(1,CategoryList.toString().length() - 1)+")";
-            String tenders =" and orders.tender in "+ tender.get("tenders");
-            int year = Integer.parseInt(tender.get("year"));
-            int quartal = Integer.parseInt(tender.get("quartal"));
-            int y = Integer.parseInt(tender.get("y"));
-            int q = Integer.parseInt(tender.get("q"));
-            boolean flag = Boolean.parseBoolean(tender.get("flag"));
-
-
-
-            while (y != year || q != quartal) {
-                Map<String, Integer> vendorCount = new HashMap<String, Integer>();
-                List<String> vendors = new LinkedList<>();
-
-                for (Long cat: CategoryList){
-                    String category_en = tableMapper.findOneCategoryENById(cat);
-                    vendors = tableMapper.findNoVendorForOrders(this.dataRangeString(flag, json.isQuarter(), q,y), "product_category = "+cat, category_en, tenders);
-
-                    for (String vendor : vendors) {
-
-                        if (vendor.equals("No vendor")) {
-                        } else if (!vendorCount.containsKey(vendor)) {
-                            vendorCount.put(vendor, 1);
-                        } else {
-                            vendorCount.put(vendor, vendorCount.get(vendor) + 1);
-                        }
-                    }
-                }
-                if (reportVendorQuarters.isEmpty()) {
-                    for (Map.Entry<String, Integer> entry : vendorCount.entrySet()) {
-                        ReportVendorQuarter reportVendorQuarter = new ReportVendorQuarter(entry.getKey());
-                        reportVendorQuarter.getQuarter().put(String.valueOf((flag?y+1:y)) + ' ' + String.valueOf(q), entry.getValue());
-                        reportVendorQuarters.add(reportVendorQuarter);
-
-                    }
-                } else {
-
-                    for (Map.Entry<String, Integer> entry : vendorCount.entrySet()) {
-                        boolean flag2 = false;
-                        for (ReportVendorQuarter reportVendorQuarter : reportVendorQuarters) {
-                            if (reportVendorQuarter.getVendor().equals(entry.getKey())) {
-                                reportVendorQuarter.getQuarter().put(String.valueOf((flag?y+1:y)) + ' ' + String.valueOf(q), entry.getValue());
-                                flag2 = true;
-                            }
-
-                        }
-                        if (!flag2) {
-                            ReportVendorQuarter reportVendorQuarter = new ReportVendorQuarter(entry.getKey());
-                            reportVendorQuarter.getQuarter().put(String.valueOf((flag?y+1:y)) + ' ' + String.valueOf(q), entry.getValue());
-                            reportVendorQuarters.add(reportVendorQuarter);
-                        }
-                    }
-                }
-
-                Map<String, Integer> n = this.countQuartal(y, q, flag);
-                flag = false;
-                y = n.get("y");
-                q = n.get("q");
-            }
-
-            return reportVendorQuarters;
-        }
-        else {
-            return reportVendorQuarters;
-        }
-    }
 
     public ArrayList<ReportVendorQuarter>getQuartalCustomerReport ( Long company,SearchParameters json){
         ArrayList<ReportVendorQuarter> reportVendorQuarters = new ArrayList<>();

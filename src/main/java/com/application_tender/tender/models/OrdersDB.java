@@ -6,10 +6,11 @@ import java.util.Arrays;
 public class OrdersDB {
     Long id;
     private Long tender;
-    private Long product_category;
-    Long id_product;
+    Long product;
     String comment;
     int number;
+    private Long product_category;
+    private Long id_product;
     private BigDecimal price;
     private BigDecimal winprice;
     private Long vendor;
@@ -31,11 +32,10 @@ public class OrdersDB {
     public OrdersDB() {
     }
 
-    public OrdersDB(Long id, Long tender, Long product_category, Long id_product, String comment, int number, BigDecimal price, BigDecimal winprice, Long vendor, Double frequency, Boolean usb, Boolean vxi, Boolean portable, Integer channel, Integer port, String form_factor, String purpose, Double voltage, Double current, String subcategory, Long subcategory_id, Option[] option, String options) {
+    public OrdersDB(Long id, Long tender, Long product, String comment, int number, BigDecimal price, BigDecimal winprice, Long vendor, Double frequency, Boolean usb, Boolean vxi, Boolean portable, Integer channel, Integer port, String form_factor, String purpose, Double voltage, Double current, String subcategory, Long subcategory_id, Option[] option, String options) {
         this.id = id;
         this.tender = tender;
-        this.product_category = product_category;
-        this.id_product = id_product;
+        this.product = product;
         this.comment = comment;
         this.number = number;
         this.price = price;
@@ -56,6 +56,7 @@ public class OrdersDB {
         this.option = option;
         this.options = options;
     }
+
 
     public BigDecimal getPrice() {
         return price;
@@ -95,22 +96,6 @@ public class OrdersDB {
 
     public void setTender(Long tender) {
         this.tender = tender;
-    }
-
-    public Long getProduct_category() {
-        return product_category;
-    }
-
-    public void setProduct_category(Long product_category) {
-        this.product_category = product_category;
-    }
-
-    public Long getId_product() {
-        return id_product;
-    }
-
-    public void setId_product(Long id_product) {
-        this.id_product = id_product;
     }
 
     public String getComment() {
@@ -239,6 +224,30 @@ public class OrdersDB {
 
     public void setOptions(String options) {
         this.options = options;
+    }
+
+    public Long getProduct() {
+        return product;
+    }
+
+    public void setProduct(Long product) {
+        this.product = product;
+    }
+
+    public Long getProduct_category() {
+        return product_category;
+    }
+
+    public void setProduct_category(Long product_category) {
+        this.product_category = product_category;
+    }
+
+    public Long getId_product() {
+        return id_product;
+    }
+
+    public void setId_product(Long id_product) {
+        this.id_product = id_product;
     }
 
     @Override

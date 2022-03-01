@@ -25,7 +25,8 @@ public class SearchParameters {
     private List<TypeTender> type;
     private boolean customExclude;
     private List<Company> custom;
-    private String innCustomer;
+    private String[] innCustomer;
+    private String innString;
     private Long country;
     private boolean winnerExclude;
     private List<Company> winner;
@@ -58,7 +59,7 @@ public class SearchParameters {
         this.type = type;
         this.customExclude = customExclude;
         this.custom = custom;
-        this.innCustomer = innCustomer;
+        this.innString = innCustomer;
         this.country = country;
         this.winnerExclude = winnerExclude;
         this.winner = winner;
@@ -164,11 +165,11 @@ public class SearchParameters {
         this.custom = custom;
     }
 
-    public String getInnCustomer() {
+    public String[] getInnCustomer() {
         return innCustomer;
     }
 
-    public void setInnCustomer(String innCustomer) {
+    public void setInnCustomer(String[] innCustomer) {
         this.innCustomer = innCustomer;
     }
 
@@ -314,6 +315,14 @@ public class SearchParameters {
 
     public void setPrivate_search(boolean private_search) {
         this.private_search = private_search;
+    }
+
+    public String getInnString() {
+        return innString;
+    }
+
+    public void setInnString(String innString) {
+        this.innString = innString;
     }
 
     @Override

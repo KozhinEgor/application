@@ -17,6 +17,7 @@ public class NewTable {
     private boolean voltage;
     private boolean current;
     private String[] subcategory;
+    private boolean subcategory_boolean;
     private String category;
 
     public String getName() {
@@ -77,6 +78,14 @@ public class NewTable {
 
     public String getCategory() {
         return category;
+    }
+
+    public boolean isSubcategory_boolean() {
+        return subcategory_boolean;
+    }
+
+    public void setSubcategory_boolean(boolean subcategory_boolean) {
+        this.subcategory_boolean = subcategory_boolean;
     }
 
     @Override
