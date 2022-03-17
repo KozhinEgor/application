@@ -2,12 +2,12 @@ package com.application_tender.tender.subsidiaryModels;
 
 public class NameValue {
     private String name;
-    private Integer value;
+    private Long value;
 
     public NameValue() {
     }
 
-    public NameValue(String name, Integer value) {
+    public NameValue(String name, Long value) {
         this.name = name;
         this.value = value;
     }
@@ -20,11 +20,11 @@ public class NameValue {
         this.name = name;
     }
 
-    public Integer getValue() {
+    public Long getValue() {
         return value;
     }
 
-    public void setValue(Integer value) {
+    public void setValue(Long value) {
         this.value = value;
     }
 }

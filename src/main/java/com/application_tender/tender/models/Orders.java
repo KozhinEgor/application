@@ -47,6 +47,10 @@ public class Orders {
        ;
     }
 
+    public OrdersDB OrdersToOrdersDB(){
+        return new OrdersDB(this.getId(),this.tender,this.product_DB,this.getComment_DB(),this.getNumber(),this.price,this.vendor_DB,this.frequency,this.usb,this.vxi,this.portable,this.channel,this.port,this.form_factor,this.purpose,this.voltage,this.current,this.subcategory,this.subcategory_DB,this.option,this.options);
+    }
+
     public Long getTender() {
         return tender;
     }
@@ -265,7 +269,7 @@ public class Orders {
             return this.product_category + ' ' +
                     (this.subcategory_DB != null? this.subcategory+" ":"")+
                     (this.vendor_DB != 1 ? this.vendor + " " : "" )+
-                    (!this.product.equals("Без артикуля")? this.product + " " : "" )+
+                    (!this.product.equals("Без артикула")? this.product + " " : "" )+
                     (this.comment.length() != 0 ?"(" + this.comment + ") ": "") +
                     "- " + this.number;
         }

@@ -3,6 +3,7 @@ package com.application_tender.tender.controller;
 import com.application_tender.tender.config.ErrorBicotender;
 import com.application_tender.tender.mapper.TableMapper;
 import com.application_tender.tender.models.Company;
+import com.application_tender.tender.models.Orders;
 import com.application_tender.tender.models.Tender;
 import com.application_tender.tender.service.Bicotender;
 import com.application_tender.tender.service.FileService;
@@ -287,6 +288,9 @@ public class ActionTender {
 
             } else {
                 JSONObject tender = bicotender.loadTender(num);
+                if(tender == null){
+                    throw new ErrorBicotender("Ошибка Ответа от Бикотендера при загрузке тендера "+num);
+                }
                 if(tender.get("company").toString().equals("null") ){
                     id = null;
                 }
@@ -301,7 +305,7 @@ public class ActionTender {
                             "https://www.bicotender.ru/tc/tender/show/tender_id/" + tender.get("tender_id"),
                             tender.get("sourceUrl").toString(),
                             ZonedDateTime.parse(tender.get("loadTime").toString() + " Z", format_API_Bico),
-                            ZonedDateTime.parse(tender.get("finishDate").toString() + " Z", format_API_Bico),
+                            tender.get("finishDate").toString().equals("null") ? null : ZonedDateTime.parse(tender.get("finishDate").toString() + " Z", format_API_Bico),
                             tender.get("openingDate").toString().equals("null") ? null : ZonedDateTime.parse(tender.get("openingDate").toString() + " Z", format_API_Bico),
                             tender.get("tender_id").toString(),
                             new BigDecimal(cost).setScale(2, BigDecimal.ROUND_CEILING),
@@ -345,6 +349,9 @@ public class ActionTender {
 
             } else {
                 JSONObject tender = bicotender.loadTender(num);
+                if(tender == null){
+                    throw new ErrorBicotender("Ошибка Ответа от Бикотендера при загрузке тендера "+num);
+                }
                 if(tender.get("company").toString().equals("null") ){
                     id = null;
                 }
@@ -359,7 +366,7 @@ public class ActionTender {
                             "https://www.bicotender.ru/tc/tender/show/tender_id/" + tender.get("tender_id"),
                             tender.get("sourceUrl").toString(),
                             ZonedDateTime.parse(tender.get("loadTime").toString() + " Z", format_API_Bico),
-                            ZonedDateTime.parse(tender.get("finishDate").toString() + " Z", format_API_Bico),
+                            tender.get("finishDate").toString().equals("null") ? null : ZonedDateTime.parse(tender.get("finishDate").toString() + " Z", format_API_Bico),
                             tender.get("openingDate").toString().equals("null") ? null : ZonedDateTime.parse(tender.get("openingDate").toString() + " Z", format_API_Bico),
                             tender.get("tender_id").toString(),
                             new BigDecimal(cost).setScale(2, BigDecimal.ROUND_CEILING),
@@ -430,6 +437,7 @@ public class ActionTender {
             tender.setTypetender(tableMapper.findTypeTenderByType(tender.getTypetender()).toString());
         }
         tableMapper.UpdateTender(tender.getId(), tender.getName_tender(), tender.getBico_tender(), tender.getGos_zakupki(), tender.getDate_start(), tender.getDate_finish(), tender.getDate_tranding(), tender.getNumber_tender(), tender.getFull_sum(), tender.getWin_sum(), tender.getCurrency(), tender.getPrice(), tender.getRate(), tender.getPrice().multiply(BigDecimal.valueOf(tender.getRate())), Long.valueOf(tender.getCustomer()), Long.valueOf(tender.getTypetender()), Long.valueOf(tender.getWinner()), tender.isDublicate());
+        searchAtribut.UpdateProductTender(tender.getId());
         return tableMapper.findTenderbyId(tender.getId());
     }
 
@@ -524,6 +532,10 @@ public class ActionTender {
     @GetMapping("/DeleteTender/{tender}")
     @ResponseBody
     Map<String, String> DeleteTender(@PathVariable Long tender) {
+        Long[] dublicate = tableMapper.tender_dublicate(tender);
+        for(Long d: dublicate){
+            tableMapper.changeNoDublicate(d);
+        }
         tableMapper.DeleteTender(tender);
         HashMap<String, String> a = new HashMap<>();
         a.put("name", "good");
@@ -974,7 +986,15 @@ public class ActionTender {
         if(tableMapper.CheckDublicate(id,id_d) == null){
             tableMapper.insertDublicate(id,id_d);
         }
-
+        for(Orders o : tableMapper.findAllOrdersbyTender(id)){
+            tableMapper.deleteOrder(o.getId());
+        }
+        for(Orders o : tableMapper.findAllOrdersbyTender(id_d)){
+            o.setTender(id);
+            System.out.println(o.toString());
+            tableMapper.insertOrder(o.OrdersToOrdersDB());
+        }
+        searchAtribut.UpdateProductTender(id);
         return "true";
     }
 

@@ -7,6 +7,7 @@ import org.json.JSONObject;
 
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.Map;
@@ -22,9 +23,17 @@ public interface TableMapper {
     @Select("Select id from tender where number_tender = #{number_tender}")
     Long findTenderByNumber_tender(String number_tender);
 
-    @Select("Select tender.id,name_tender, bico_tender,gos_zakupki,date_start, date_finish,date_tranding ,number_tender,  full_sum, win_sum, currency, tender.price, rate, sum, c.name as customer, c.inn as inn, type as typetender, w.id as winner, product, dublicate, country.name as country, w.inn as winner_inn, winner_country.name as winner_country, " +
-            "(Select GROUP_CONCAT(tender_plan.tender_plan separator ' ') from tender_plan where tender_plan.tender = tender.id) as tender_plan, "+"(Select GROUP_CONCAT(tender_dublicate.tender_dublicate separator ' ') from tender_dublicate where tender_dublicate.tender = tender.id) as tender_dublicate "+
-            " from tender left join customer c on c.id = tender.customer left join typetender t on t.id = tender.typetender left join winner w on w.id = tender.winner left join country on c.country = country.id left join country as winner_country on w.country = winner_country.id where tender.id = #{id}")
+    @Select("Select tender.id,name_tender, bico_tender,gos_zakupki,date_start, date_finish,date_tranding ,number_tender," +
+            "  full_sum, win_sum, currency, tender.price, rate, sum, c.name as customer, c.inn as inn, type as typetender," +
+            " w.id as winner, product, dublicate, country.name as country, w.inn as winner_inn, winner_country.name as winner_country, " +
+            "(Select GROUP_CONCAT(tender_plan.tender_plan separator ' ') from tender_plan where tender_plan.tender = tender.id) as tender_plan, "+
+            "(Select GROUP_CONCAT(tender_dublicate.tender_dublicate separator ' ') from tender_dublicate where tender_dublicate.tender = tender.id) as tender_dublicate "+
+            " from tender left join customer c on c.id = tender.customer" +
+            " left join typetender t on t.id = tender.typetender" +
+            " left join winner w on w.id = tender.winner" +
+            " left join country on c.country = country.id" +
+            " left join country as winner_country on w.country = winner_country.id" +
+            " where tender.id = #{id}")
     Tender findTenderbyId(Long id);
 
     @Select("Select distinct tender.id,name_tender, bico_tender,gos_zakupki,date_start, date_finish,date_tranding ,number_tender,  full_sum, win_sum, currency, tender.price, rate, sum, c.name as customer, c.inn as inn, type as typetender, w.id as winner, product, dublicate, country.name as country, w.inn as winner_inn, winner_country.name as winner_country, " +
@@ -142,6 +151,9 @@ public interface TableMapper {
 
     @Update("Update tender set dublicate = 1 where tender.id = #{id}")
     void changeDublicate(Long id);
+
+    @Update("Update tender set dublicate = 0 where tender.id = #{id}")
+    void changeNoDublicate(Long id);
 
     @Update("Update tender set dublicate = 0 where tender.id = #{id}")
     void deleteDublicate(Long id);
@@ -645,7 +657,7 @@ public interface TableMapper {
     @Select("Select comment.id,comment.text, comment.usr, usr.nickname as user, comment.date from comment left join usr on comment.usr = usr.id where tender = #{tender} order by date DESC")
     List<Comment> findAllCommentsByTender(Long tender);
 
-    @Select("Select comment.id,comment.text, comment.usr, usr.nickname as user, comment.date from comment left join usr on comment.usr = usr.id left join comment_for_user on comment.id = comment_for_user.comment where comment_for_user.usr = #{user} order by date DESC limit 4")
+    @Select("Select comment.id,comment.text, comment.usr, usr.nickname as user, comment.date, comment.tender  from comment left join usr on comment.usr = usr.id left join comment_for_user on comment.id = comment_for_user.comment where comment_for_user.usr = #{user} order by date DESC limit 4")
     List<Comment> findAllCommentsForUser(Long user);
 
     @Select("Select id from comment where tender =#{tender} and date = #{date}")
@@ -755,6 +767,8 @@ public interface TableMapper {
 ///////////////////////////////////////////////////////////
     @Select("Select id from tender_dublicate where tender = #{id} and tender_dublicate = #{id_d}")
     Long CheckDublicate(Long id, Long id_d);
+    @Select("Select tender_dublicate from tender_dublicate where tender = #{id}")
+    Long[] tender_dublicate(Long id);
     @Insert("Insert into tender_dublicate (tender,tender_dublicate) values (#{id},#{id_d})")
     void insertDublicate(Long id, Long id_d);
     @Delete("Delete from tender_dublicate where tender_dublicate = #{id}")
@@ -782,22 +796,33 @@ public interface TableMapper {
 ///////////////////////////////////////////////////////////
 @Insert("Insert into `rate-rub-usd` (date,usd) values (#{date},#{usd})")
     void InsertRate(ZonedDateTime date,double usd);
-
+@Select("Select usd from `rate-rub-usd` where date = #{date} limit 1")
+    Double RateByDate(ZonedDateTime date);
 
 ///////////////////////////////////////////////////////////
 //              Another
 ///////////////////////////////////////////////////////////
-    @Select("SELECT count(t.id) as value, v.name as name from tender as t" +
+
+//@Select("SELECT max(count(distinct t.id)) as value from tender as t" +
+//        "    left join orders o on t.id = o.tender" +
+//        "    left join product p on o.product = p.id" +
+//        "    left join vendor v on p.vendor= v.id" +
+//        "   left join product_category pc on p.product_category = pc.id "+
+//        " where date_start >= #{date} and v.id  <> 1 and t.dublicate <> true and sum>1000 group by v.id order by value desc")
+//Long MAXTopDiagrammHome(LocalDate date);
+
+    @Select("SELECT count(distinct t.id) as value, concat(v.name) as name from tender as t" +
             "    left join orders o on t.id = o.tender" +
             "    left join product p on o.product = p.id" +
             "    left join vendor v on p.vendor= v.id" +
-            " where date_start > #{date} and v.id  <> 1 and t.dublicate <> true group by v.id")
-    List<NameValue> getTopDiagrammHome(ZonedDateTime date);
+            "   left join product_category pc on p.product_category = pc.id "+
+            " where date_start >= #{date} and v.id  <> 1 and t.dublicate <> true and sum>1000 group by v.id order by value desc")
+    List<NameValue> getTopDiagrammHome(LocalDate date);
 
-    @Select("SELECT count(t.id) as value, v.category as name from tender as t" +
+    @Select("SELECT count(distinct t.id) as value, concat( pc.category_product,' ', pc.category ) as name from tender as t" +
             "    left join orders o on t.id = o.tender" +
             "    left join product p on o.product = p.id" +
-            "    left join product_category v on p.vendor= v.id" +
-            " where date_start > #{date} and v.id  <> 1 and t.dublicate <> true group by v.id")
-    List<NameValue> getBottomDiagrammHome(ZonedDateTime date);
+            "    left join product_category pc on p.product_category = pc.id " +
+            " where date_start >= #{date} and pc.id  <> 7 and t.dublicate <> true and sum>1000 group by pc.id order by value desc")
+    List<NameValue> getBottomDiagrammHome(LocalDate date);
 }

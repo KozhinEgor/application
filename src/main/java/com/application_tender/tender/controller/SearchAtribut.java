@@ -5,6 +5,7 @@ import com.application_tender.tender.models.*;
 import com.application_tender.tender.subsidiaryModels.*;
 import org.springframework.stereotype.Controller;
 
+import java.time.LocalDate;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
@@ -649,13 +650,13 @@ public List<Orders> generateOrders(Long idTender){
         else return num.toString()+" наименований";
     }
 
-    ZonedDateTime startDateByPeriod(String period){
+    LocalDate startDateByPeriod(String period){
         switch (period){
-            case "неделя": return ZonedDateTime.now().minusDays(7);
-            case "Месяц" : return ZonedDateTime.now().minusDays(30);
-            case "Квартал" : return ZonedDateTime.now().minusDays(90);
-            case "Год" : return ZonedDateTime.now().minusDays(365);
-            default: return ZonedDateTime.now().minusDays(7);
+            case "неделя": return LocalDate.now().minusDays(7);
+            case "Месяц" : return LocalDate.now().minusDays(30);
+            case "Квартал" : return LocalDate.now().minusDays(90);
+            case "Год" : return LocalDate.now().minusDays(365);
+            default: return LocalDate.now().minusDays(7);
         }
     }
 }

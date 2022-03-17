@@ -32,14 +32,13 @@ public class OrdersDB {
     public OrdersDB() {
     }
 
-    public OrdersDB(Long id, Long tender, Long product, String comment, int number, BigDecimal price, BigDecimal winprice, Long vendor, Double frequency, Boolean usb, Boolean vxi, Boolean portable, Integer channel, Integer port, String form_factor, String purpose, Double voltage, Double current, String subcategory, Long subcategory_id, Option[] option, String options) {
+    public OrdersDB(Long id, Long tender, Long product, String comment, int number, BigDecimal price, Long vendor, Double frequency, Boolean usb, Boolean vxi, Boolean portable, Integer channel, Integer port, String form_factor, String purpose, Double voltage, Double current, String subcategory, Long subcategory_id, Option[] option, String options) {
         this.id = id;
         this.tender = tender;
         this.product = product;
         this.comment = comment;
         this.number = number;
         this.price = price;
-        this.winprice = winprice;
         this.vendor = vendor;
         this.frequency = frequency;
         this.usb = usb;

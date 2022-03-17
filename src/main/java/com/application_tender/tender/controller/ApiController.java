@@ -36,7 +36,7 @@ import java.io.*;
 import java.math.BigDecimal;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.time.ZonedDateTime;
+import java.time.*;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.time.temporal.IsoFields;
@@ -532,7 +532,6 @@ public class ApiController {
             tableMapper.insertOrder(json);
         }
         else{
-            System.out.println(json);
             tableMapper.updateOrder(json);
         }
         searchAtribut.UpdateProductTender(json.getTender());
@@ -1217,18 +1216,19 @@ public class ApiController {
     @GetMapping(path = "/Test")
     @ResponseBody
     Object Test() throws JSONException {
-        List<NameValue> testModels = new ArrayList<>();
-        testModels.add(new NameValue("анализатор",12));
-        testModels.add(new NameValue("анализатор цепей",15));
-        testModels.add(new NameValue("осциллограф",28));
+        ZonedDateTime zonedDateTime = ZonedDateTime.of(LocalDate.of(2018,1,1), LocalTime.of(0,0), ZoneId.of("UTC"));
+        while ( !ZonedDateTime.now().minusDays(1).isBefore(zonedDateTime) ){
+           if(tableMapper.RateByDate(zonedDateTime) == null) {
+               Map<String, Double> currency = new HashMap<>();
+               currency = getCurrency.currency(zonedDateTime.format(formatCurrency));
+               double rate = currency.get("USD");
+               tableMapper.InsertRate(zonedDateTime, rate);
+           }
+            System.out.println(zonedDateTime);
+            zonedDateTime = zonedDateTime.plusDays(1);
+        }
 
-
-        return testModels.stream().map(entity ->{
-            List<Object> list = new ArrayList<>();
-            list.add(entity.getName());
-            list.add(entity.getValue());
-            return list;
-        }).collect(Collectors.toList());
+        return 1;
     }
 //    private static class TestModel{
 //        private String name;
@@ -2228,24 +2228,49 @@ public class ApiController {
     @PostMapping(path = "/getTopDiagrammHome")
     @ResponseBody
     Object getTopDiagrammHome(@RequestBody String period){
-        return tableMapper.getTopDiagrammHome(searchAtribut.startDateByPeriod(period)).stream().map(entity ->{
-            List<Object> list = new ArrayList<>();
-            list.add(entity.getName());
-            list.add(entity.getValue());
-            return list;
-        }).collect(Collectors.toList());
+        List<NameValue> rezult = tableMapper.getTopDiagrammHome(searchAtribut.startDateByPeriod(period));
+        if(rezult.size() != 0){
+            Long maxValue = rezult.get(0).getValue();
+            List<NameValue> ret = rezult.stream().filter((en) ->
+                    en.getValue()>=(maxValue*0.1)).collect(Collectors.toList());
+            Long another = rezult.stream().map(NameValue::getValue).filter(value ->
+                    value <=(maxValue*0.1)).reduce(0L,Long::sum);
+            ret.add(new NameValue("Меньше 10%",another));
+            return ret.stream().map(entity ->{
+                List<Object> list = new ArrayList<>();
+                list.add(entity.getName());
+                list.add(entity.getValue());
+                return list;
+            }).collect(Collectors.toList());
+        }
+        else {
+            return rezult;
+        }
     }
 
     @ApiOperation(value = "Нижняя диаграмма для главной странице")
     @PostMapping(path = "/getBottomDiagrammHome")
     @ResponseBody
     Object getBottomDiagrammHome(@RequestBody String period){
-        return tableMapper.getBottomDiagrammHome(searchAtribut.startDateByPeriod(period)).stream().map(entity ->{
-            List<Object> list = new ArrayList<>();
-            list.add(entity.getName());
-            list.add(entity.getValue());
-            return list;
-        }).collect(Collectors.toList());
+        List<NameValue> rezult = tableMapper.getBottomDiagrammHome(searchAtribut.startDateByPeriod(period));
+        if(rezult.size() != 0){
+            Long maxValue = rezult.get(0).getValue();
+            List<NameValue> ret = rezult.stream().filter((en) ->
+                    en.getValue()>=(maxValue*0.1)).collect(Collectors.toList());
+            Long another = rezult.stream().map(NameValue::getValue).filter(value ->
+                    value <=(maxValue*0.1)).reduce(0L,Long::sum);
+            ret.add(new NameValue("Меньше 10%",another));
+            return ret.stream().map(entity ->{
+                List<Object> list = new ArrayList<>();
+                list.add(entity.getName());
+                list.add(entity.getValue());
+                return list;
+            }).collect(Collectors.toList());
+        }
+        else {
+            return rezult;
+        }
+
     }
 }
 
