@@ -12,7 +12,7 @@ import com.application_tender.tender.subsidiaryModels.*;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.annotations.ApiOperation;
-import org.apache.poi.common.usermodel.HyperlinkType;
+import javax.json.Json;
 import org.apache.poi.openxml4j.exceptions.InvalidFormatException;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.*;
@@ -28,8 +28,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
-import springfox.documentation.spring.web.json.Json;
 
+import javax.json.JsonValue;
 import javax.json.bind.Jsonb;
 import javax.json.bind.JsonbBuilder;
 import java.io.*;
@@ -538,6 +538,56 @@ public class ApiController {
         return searchAtribut.generateOrders(json.getTender());
     }
 
+    @ApiOperation(value = "Возвращает продкты строкой", notes = "Переводит продукты в список продуктов")
+    @PostMapping("/getOrdersString")
+    @ResponseBody
+    ResponseEntity retutnStringProductByTender(@RequestBody List<Orders> json) {
+        return ResponseEntity.ok(Json.createObjectBuilder().add("name", searchAtribut.generateProductString(json)).build().toString());
+    }
+
+    @ApiOperation(value = "Разделение тендера", notes = "Разделение тендера на под тендеры")
+    @PostMapping("/divdeTender")
+    @ResponseBody
+    ResponseEntity divdeTender(@RequestBody List<DivedeTenderDTO> divdeTender) {
+        tableMapper.changeDublicate(divdeTender.get(0).getTender().getId());
+        for(DivedeTenderDTO divedeTenderDTO : divdeTender){
+            Tender tender = divedeTenderDTO.getTender();
+            tableMapper.insertTender(tender.getName_tender(),
+                    tender.getBico_tender(),
+                    tender.getGos_zakupki(),
+                    tender.getDate_start(),
+                    tender.getDate_finish(),
+                    tender.getDate_tranding(),
+                    tender.getNumber_tender() + "_" + (divdeTender.indexOf(divedeTenderDTO)+1),
+                    tender.getPrice(),
+                    new BigDecimal(0),
+                    tender.getCurrency(),
+                    tender.getPrice(),
+                    tender.getRate(),
+                    tender.getPrice().multiply(BigDecimal.valueOf(tender.getRate())),
+                    searchAtribut.findCustomer("null", tender.getCustomer()),
+                    searchAtribut.findTypetender(tender.getTypetender()),
+                    1L
+            );
+            Long id = tableMapper.findTenderByNumber_tender(tender.getNumber_tender() + "_" + (divdeTender.indexOf(divedeTenderDTO)+1));
+            for(Orders orders : divedeTenderDTO.getOrders()){
+//                Long id, Long tender, Long product, String comment, int number,
+//                BigDecimal price, Long vendor, Double frequency, Boolean usb,
+//                Boolean vxi, Boolean portable, Integer channel, Integer port,
+//                String form_factor, String purpose, Double voltage, Double current,
+//                String subcategory, Long subcategory_id, Option[] option, String options
+                tableMapper.insertOrder(new OrdersDB(null, id, orders.getProduct_DB(), orders.getComment(), orders.getNumber(),
+                        orders.getPrice(), orders.getVendor_DB(), orders.getFrequency(), orders.getUsb(),
+                        orders.getVxi(), orders.getPortable(), orders.getChannel(), orders.getPort(),
+                        orders.getForm_factor(), orders.getPurpose(), orders.getVoltage(), orders.getCurrent(),
+                        orders.getSubcategory(), orders.getSubcategory_DB(), orders.getOption(), orders.getOptions()));
+
+                searchAtribut.UpdateProductTender(id);
+            }
+
+        }
+        return ResponseEntity.ok(Json.createObjectBuilder().add("name","ok").build().toString());
+    }
 
 
     @ApiOperation(value = "Добавляет или изменяет информацию о продуктах в тендере", notes = "Сравнивает список продуктов который пришел и который есть в БД и изменяет если есть изменения, удаляет лишние из БД и Добавляет нужные в БД")
@@ -593,179 +643,16 @@ public class ApiController {
     @RequestMapping(path = "/quarterCustomer/{company}")
     @ResponseBody
     public Report getQuartalCustomerReport(@PathVariable Long company, @RequestBody ReportCriteria reportCriteria) {
-        if(reportCriteria.getSearchParameters().getDateStart() == null){
-            reportCriteria.getSearchParameters().setDateStart(ZonedDateTime.parse("01.01.2018 00:00:00 Z",format_date));
-        }
-        if(reportCriteria.getSearchParameters().getDateFinish() == null){
-            reportCriteria.getSearchParameters().setDateFinish(ZonedDateTime.now());
-        }
-        String tender = searchAtribut.WhereWithoutProduct(reportCriteria.getSearchParameters()).substring(5);
-        String product = searchAtribut.searchTenderByProduct(reportCriteria.getSearchParameters().getProduct());
-        String select = "";
-        if(company == 0L){
-            select = "Select c.name as 'Компания', convert(sum(round(tender.sum/(select count(tender) from orders  left join product as pr on pr.id_product = orders.id_product and pr.product_category = orders.product_category" +
-                    " left join product_category on orders.product_category = product_category.id" +
-                    " left join subcategory on pr.subcategory = subcategory.id"+
-                    " left join vendor on pr.vendor = vendor.id "+
-                    " where tender = tender.id "+(!product.equals("")?"and ("+ product + ")":"")+ "),2)),char) as 'Сумма', convert(count(distinct orders.tender),char) as 'Количество тендеров',";
+        Object[] data = reportService.selectForReportCompany(company, reportCriteria);
+        return new Report(null,tableMapper.Report((String) data[0]) , (List<String>) data[1],null);
+    }
 
-        }
-        else{
-            select = "Select w.name as 'Компания', convert(sum(round(tender.sum/(select count(tender) from orders  left join product as pr on pr.id_product = orders.id_product and pr.product_category = orders.product_category" +
-                    " left join product_category on orders.product_category = product_category.id" +
-                    " left join subcategory on pr.subcategory = subcategory.id"+
-                    " left join vendor on pr.vendor = vendor.id "+
-                    " where tender = tender.id "+(!product.equals("")?"and ("+ product + ")":"")+ "),2)),char) as 'Сумма', convert(count(distinct orders.tender),char) as 'Количество тендеров',";
-
-        }
-
-        List<String> column = new ArrayList<String>();
-        column.add("Компания");
-        column.add("Сумма");
-        column.add("Количество тендеров");
-
-        switch (reportCriteria.getInterval()){
-            case "Год":
-                for(int year = reportCriteria.getSearchParameters().getDateStart().getYear();year<=reportCriteria.getSearchParameters().getDateFinish().getYear();year++) {
-                    select= select+ "convert(sum(case" +
-                            " when year(date_start) = " + year +
-                            " then"+" round(tender.sum/(select count(tender) from orders  left join product as pr on pr.id_product = orders.id_product and pr.product_category = orders.product_category" +
-                            " left join product_category on orders.product_category = product_category.id" +
-                            " left join subcategory on pr.subcategory = subcategory.id"+
-                            " left join vendor on pr.vendor = vendor.id"+
-                            "  where tender = tender.id "+(!product.equals("")?"and ("+ product + ")":"")+ "),2)" +
-                            " else null end),char) as 'Сумма в " + year + "', ";
-                  select= select+ "convert(count(distinct (" +
-                            " select(if( year(date_start) =" + year +
-                            " ,tender.id" +
-                            " ,null)))),char) as ' Количество в " + year + "',";
-                    column.add("Сумма в " + year);
-                    column.add("Количество в " + year);
-                }
-
-
-                break;
-            case "Финансовый год":
-                for(int year = reportCriteria.getSearchParameters().getDateStart().getYear();year<=reportCriteria.getSearchParameters().getDateFinish().getYear();year++) {
-                    select= select+ "convert(sum(case" +
-                            " when YEAR(date_start) + IF(MONTH(date_start)>10, 1, 0) = " + year +
-                            " then"+" round(tender.sum/(select count(tender) from orders  left join product as pr on pr.id_product = orders.id_product and pr.product_category = orders.product_category" +
-                            " left join tender on orders.tender = tender.id" +
-                            " left join product_category on orders.product_category = product_category.id" +
-                            " left join subcategory on pr.subcategory = subcategory.id"+
-                            " left join vendor on pr.vendor = vendor.id "+" where tender = tender.id "+(!product.equals("")?"and ("+ product + ")":"")+ "),2)" +
-                            " else null end),char) as 'Сумма в " + year + "',";
-                    select= select+ "convert(count(distinct (" +
-                            " select(if( YEAR(date_start) + IF(MONTH(date_start)>10, 1, 0) = " + year +
-                            " ,tender.id" +
-                            " ,null)))),char) as ' Количество в " + year + "',";
-                    column.add("Сумма в " + year);
-                    column.add("Количество в " + year);
-                }
-                break;
-            case "Неделя":
-                for(int year = reportCriteria.getSearchParameters().getDateStart().getYear();year<=reportCriteria.getSearchParameters().getDateFinish().getYear();year++) {
-                    for (int week = 1; week <= 52; week++) {
-                        select= select+ "convert(sum(case" +
-                                " when year(date_start) = " + year + " and week(date_start) = " + week +
-                                " then"+" round(tender.sum/(select count(tender) from orders  left join product as pr on pr.id_product = orders.id_product and pr.product_category = orders.product_category" +
-                                " left join tender on orders.tender = tender.id" +
-                                " left join product_category on orders.product_category = product_category.id" +
-                                " left join subcategory on pr.subcategory = subcategory.id"+
-                                " left join vendor on pr.vendor = vendor.id "+" where tender = tender.id "+(!product.equals("")?"and ("+ product + ")":"")+ "),2)" +
-                                " else null end),char) as 'Сумма в " + year + "W" + week + "',";
-                        select= select+ "convert(count(distinct (" +
-                                " select(if( year(date_start) = " + year + " and week(date_start) = " + week +
-                                " ,tender.id" +
-                                " ,null)))),char) as 'Количество в " + year + "W" + week + "',";
-                        column.add("Сумма в " + year + "W" + week);
-                        column.add("Количество в " + year + "W" + week);
-                    }
-                }
-                break;
-            case "Квартал":
-                for(int year = reportCriteria.getSearchParameters().getDateStart().getYear();year<=reportCriteria.getSearchParameters().getDateFinish().getYear();year++) {
-                    for (int quarter = 1; quarter <= 4; quarter++) {
-                        select= select+ "convert(sum(case" +
-                                " when year(date_start) = " + year + " and quarter(date_start) = " + quarter +
-                                " then"+" round(tender.sum/(select count(tender) from orders  left join product as pr on pr.id_product = orders.id_product and pr.product_category = orders.product_category" +
-                                " left join tender on orders.tender = tender.id" +
-                                " left join product_category on orders.product_category = product_category.id" +
-                                " left join subcategory on pr.subcategory = subcategory.id"+
-                                " left join vendor on pr.vendor = vendor.id "+" where tender = tender.id "+(!product.equals("")?"and ("+ product + ")":"")+ "),2)" +
-                                " else null end),char) as 'Сумма в " + year + "Q" + quarter + "',";
-                        select= select+ "convert(count(distinct (" +
-                                " select(if( year(date_start) = " + year + " and quarter(date_start) = " + quarter +
-                                " ,tender.id" +
-                                " ,null)))),char) as 'Количество в " + year + "Q" + quarter + "',";
-                        column.add("Сумма в " + year + "Q" + quarter);
-                        column.add("Количество в " + year + "Q" + quarter);
-                    }
-                }
-                break;
-            case"Финансовый квартал":
-                for(int year = reportCriteria.getSearchParameters().getDateStart().getYear();year<=reportCriteria.getSearchParameters().getDateFinish().getYear();year++) {
-                    for (int quarter = 1; quarter <= 4; quarter++) {
-                        select= select+ "convert(sum(case" +
-                                " when YEAR(date_start) + IF(MONTH(date_start)>10, 1, 0) = " + year + " and IF(MONTH(date_start)>10, 1, CEIL((MONTH(date_start)+2)/3)) = " + quarter +
-                                " then"+" round(tender.sum/(select count(tender) from orders  left join product as pr on pr.id_product = orders.id_product and pr.product_category = orders.product_category" +
-                                " left join tender on orders.tender = tender.id" +
-                                " left join product_category on orders.product_category = product_category.id" +
-                                " left join subcategory on pr.subcategory = subcategory.id"+
-                                " left join vendor on pr.vendor = vendor.id "+
-                                " where tender = tender.id "+(!product.equals("")?"and ("+ product + ")":"")+ "),2)" +
-                                " else null end),char) as 'Сумма в " + year + "FQ" + quarter + "',";
-                        select= select+ "convert(count(distinct (" +
-                                " select(if( YEAR(date_start) + IF(MONTH(date_start)>10, 1, 0) = " + year + " and IF(MONTH(date_start)>10, 1, CEIL((MONTH(date_start)+2)/3)) = " + quarter +
-                                " ,tender.id" +
-                                " ,null)))),char) as 'Количество в " + year + "FQ" + quarter + "',";;
-                        column.add("Сумма в " + year + "FQ" + quarter);
-                        column.add("Количество в " + year + "FQ" + quarter);
-                    }
-                }
-                break;
-            case"Месяц":
-                for(int year = reportCriteria.getSearchParameters().getDateStart().getYear();year<=reportCriteria.getSearchParameters().getDateFinish().getYear();year++) {
-                    for (int month = 1; month <= 12; month++) {
-                        select= select+ "convert(sum(case" +
-                                " when year(date_start) = " + year + " and month(date_start) = " + month +
-                                " then"+" round(tender.sum/(select count(tender) from orders  left join product as pr on pr.id_product = orders.id_product and pr.product_category = orders.product_category" +
-                                " left join tender on orders.tender = tender.id" +
-                                " left join product_category on orders.product_category = product_category.id" +
-                                " left join subcategory on pr.subcategory = subcategory.id"+
-                                " left join vendor on pr.vendor = vendor.id"+
-                                "  where tender = tender.id "+(!product.equals("")?"and ("+ product + ")":"")+ "),2)" +
-                                " else null end),char) as 'Сумма в " + year + "M" + month + "',";
-                        select= select+ "convert(count(distinct (" +
-                                " select(if( year(date_start) = " + year + " and month(date_start) = " + month +
-                                " ,tender.id" +
-                                " ,null)))),char) as 'Количество в " + year + "M" + month + "',";
-
-                        column.add("Сумма в " + year + "M" + month);
-                        column.add("Количество в " + year + "M" + month);
-                    }
-                }
-
-                break;
-        }
-
-
-
-        select= select.substring(0, select.length() - 1) + " from orders " +
-                " left join product as pr on pr.id_product = orders.id_product and pr.product_category = orders.product_category" +
-                " left join tender on orders.tender = tender.id" +
-                " left join product_category on orders.product_category = product_category.id" +
-                " left join subcategory on pr.subcategory = subcategory.id"+
-                " left join vendor on pr.vendor = vendor.id" +
-                " left join customer c on c.id = tender.customer" +
-                " left join typetender t on t.id = tender.typetender" +
-                " left join winner w on w.id = tender.winner" +
-                " left join country on c.country = country.id" +
-                " where " +
-                (!tender.equals("") ?"("+tender+")":"") +
-                (!product.equals("")?"and ("+ product + ")":"")+
-                " group by " + (company == 0L?"c.name":"w.name");
-        return new Report(null,tableMapper.Report(select),column,null);
+    @ApiOperation(value = "Возвращает запрос для вывода упоминаний компании в тендерах по кварталам ")
+    @RequestMapping(path = "/quarterCustomer/request/{company}")
+    @ResponseBody
+    public String getQuartalCustomerQueryReport(@PathVariable Long company, @RequestBody ReportCriteria reportCriteria) {
+        Object[] data = reportService.selectForReportCompany(company, reportCriteria);
+        return Json.createObjectBuilder().add("name", (String) data[0]).build().toString();
     }
 
     @ApiOperation(value = "Возвращает список кварталов попадающих в переиод")
@@ -1772,8 +1659,8 @@ public class ApiController {
         List<String> columnTender = new ArrayList<String>();
         String selectTenderForTable = selectTenderForTable = "Select convert(SUM(round(sum/(select count(tender)" +
                 " from orders" +
-                " left join product as pr on pr.id_product = orders.id_product and pr.product_category = orders.product_category" +
-                " left join product_category on orders.product_category = product_category.id" +
+                " left join product as pr on pr.id = orders.product" +
+                " left join product_category on pr.product_category = product_category.id" +
                 " left join subcategory on pr.subcategory = subcategory.id"+
                 " left join vendor on pr.vendor = vendor.id" +
                 " where orders.tender = tender.id " +
@@ -1881,9 +1768,9 @@ public class ApiController {
 
 
             selectProduct= selectProduct.substring(0, selectProduct.length() - 1) + " from orders " +
-                    " left join product as pr on pr.id_product = orders.id_product and pr.product_category = orders.product_category" +
+                    " left join product as pr on pr.id = orders.product" +
                     " left join tender on orders.tender = tender.id" +
-                    " left join product_category on orders.product_category = product_category.id" +
+                    " left join product_category on pr.product_category = product_category.id" +
                     " left join subcategory on pr.subcategory = subcategory.id"+
                     " left join vendor on pr.vendor = vendor.id" +
                     " left join customer c on c.id = tender.customer" +
@@ -1895,9 +1782,9 @@ public class ApiController {
                     (!product.equals("")?" and ("+ product + ")":"") +
                     " group by pr.vendor";
             selectTenderForTable = selectTenderForTable + " from orders " +
-        " left join product as pr on pr.id_product = orders.id_product and pr.product_category = orders.product_category" +
+                " left join product as pr on pr.id = orders.product" +
                 " left join tender on orders.tender = tender.id" +
-                " left join product_category on orders.product_category = product_category.id" +
+                " left join product_category on pr.product_category = product_category.id" +
                 " left join subcategory on pr.subcategory = subcategory.id"+
                 " left join vendor on pr.vendor = vendor.id" +
                     " left join customer c on c.id = tender.customer" +
@@ -1907,10 +1794,10 @@ public class ApiController {
                 " where " +
                 (!tender.equals("") ?"("+tender+")":"") +
                 (!product.equals("")?" and ("+ product + ")":"") +" group by " +groupByForTable + " order by " + groupByForTable ;
-        List<Map<String,String>> tenderTable = tableMapper.Report(selectTenderForTable);
-        for(Map<String,String> a : tenderTable){
+        List<Map<String,Object>> tenderTable = tableMapper.Report(selectTenderForTable);
+        for(Map<String,Object> a : tenderTable){
             try{
-                BigDecimal b = BigDecimal.valueOf(Double.parseDouble(a.get("Сумма")) / kurs.get(a.get(nameYear))).setScale(2, BigDecimal.ROUND_CEILING) ;
+                BigDecimal b = BigDecimal.valueOf(Double.parseDouble(a.get("Сумма").toString()) / kurs.get(a.get(nameYear))).setScale(2, BigDecimal.ROUND_CEILING) ;
                 a.put("Сумма в долларах",b.toString());
             }catch (Exception e){
                 a.put("Сумма в долларах","0");

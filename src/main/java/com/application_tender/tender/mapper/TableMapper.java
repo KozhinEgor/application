@@ -539,7 +539,7 @@ public interface TableMapper {
     ReportQuarter findForOrders(int year, int NumberQuarter, String dateRange, String category, String tenders);
 
     @Select("${select}")
-    List<Map<String,String>> Report(String select);
+    List<Map<String,Object>> Report(String select);
 
     @Select("SELECT name from (Select distinct tender.id, vendor.name as name from keysight.tender join keysight.orders on orders.tender = tender.id left join ${category_en} as prod on prod.id = orders.id_product left join vendor on  prod.vendor = vendor.id where ${dateRange} and ${category} ${tenders}) as c ")
     List<String> findVendorForOrders(String dateRange, String category, String category_en, String tenders);

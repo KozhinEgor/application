@@ -10,11 +10,13 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 
 import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import java.time.temporal.IsoFields;
 import java.util.*;
 
 @Service
 public class ReportService {
+    private final DateTimeFormatter format_date = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm:ss z");
     private final ArrayList<Integer[]> quarterEconomic = new ArrayList<>();
     private ArrayList<Integer[]> quarterYear = new ArrayList<>();
     private  final TableMapper tableMapper;
@@ -423,5 +425,110 @@ public class ReportService {
         else{
             return Quartal;
         }
+    }
+    public Object[] selectForReportCompany( Long company, ReportCriteria reportCriteria){
+         /*
+    Select
+    w.name,
+    count(tender.id) as 'Количество тендеров',
+    sum(tender.win_sum) as 'Сумма тендеров',
+    count(case when year(tender.date_start)=2018 then tender.id end) as 'Количество 2018',
+    sum(case when year(tender.date_start)=2018 then tender.win_sum end) as 'Сумма 2018',
+    count(case when year(tender.date_start)=2019 then tender.id end) as 'Количество 2019',
+    sum(case when year(tender.date_start)=2019 then tender.win_sum end) as 'Сумма 2019',
+    count(case when year(tender.date_start)=2020 then tender.id end) as 'Количество 2020',
+    sum(case when year(tender.date_start)=2020 then tender.win_sum end) as 'Сумма 2020',
+    count(case when year(tender.date_start)=2021 then tender.id end) as 'Количество 2021',
+    sum(case when year(tender.date_start)=2021 then tender.win_sum end) as 'Сумма 2021',
+    count(case when year(tender.date_start)=2022 then tender.id end) as 'Количество 2022',
+    sum(case when year(tender.date_start)=2022 then tender.win_sum end) as 'Сумма 2022'
+from tender
+left join winner w on tender.winner = w.id
+    where  tender.dublicate = false and tender.win_sum > 1 and tender.id in (SELECT tender from orders left join product p on orders.product = p.id where  p.product_category in (13,11,5,14))
+group by w.name;
+    */
+        if(reportCriteria.getSearchParameters().getDateStart() == null){
+            reportCriteria.getSearchParameters().setDateStart(ZonedDateTime.parse("01.01.2018 00:00:00 Z",format_date));
+        }
+        if(reportCriteria.getSearchParameters().getDateFinish() == null){
+            reportCriteria.getSearchParameters().setDateFinish(ZonedDateTime.now());
+        }
+        String tender = searchAtribut.WhereWithoutProduct(reportCriteria.getSearchParameters()).substring(5);
+        String product = searchAtribut.searchTenderByProduct(reportCriteria.getSearchParameters().getProduct());
+        String select = "";
+        String sum = (company == 0L ? "sum": "win_sum");
+        String fromWithJoin = "from tender left join " + (company == 0L
+                ? "customer c on tender.customer"
+                : "winner c on tender.winner" ) + " = c.id\n";
+        select = "Select c.name as 'Компания', sum(tender."+ sum +") as 'Сумма'\n, count(tender.id) as 'Количество тендеров'\n, ";
+        List<String> column = new ArrayList<String>();
+        column.add("Компания");
+        column.add("Сумма");
+        column.add("Количество тендеров");
+
+        switch (reportCriteria.getInterval()){
+            case "Год":
+                for(int year = reportCriteria.getSearchParameters().getDateStart().getYear();year<=reportCriteria.getSearchParameters().getDateFinish().getYear();year++) {
+                    select = select + " sum(case when year(tender.date_start)=" + year + " then tender." + sum + " end) as 'Сумма в " + year + "',\n " +
+                            "count(case when year(tender.date_start)=" + year + " then tender.id end) as 'Количество в " + year + "',\n ";
+                    column.add("Сумма в " + year);
+                    column.add("Количество в " + year);
+                }
+                break;
+            case "Финансовый год":
+                for(int year = reportCriteria.getSearchParameters().getDateStart().getYear();year<=reportCriteria.getSearchParameters().getDateFinish().getYear();year++) {
+                    select = select + " sum(case when (year(date_start) + if(month(date_start)>10,1,0) )= " + year + " then tender."+ sum +" end) as 'Сумма в " + year + "',\n " +
+                            "count(case when (year(date_start) + if(month(date_start)>10,1,0) )= " + year + " then tender.id end) as 'Количество в " + year + "',\n ";
+                    column.add("Сумма в " + year);
+                    column.add("Количество в " + year);
+                }
+                break;
+            case "Неделя":
+                for(int year = reportCriteria.getSearchParameters().getDateStart().getYear();year<=reportCriteria.getSearchParameters().getDateFinish().getYear();year++) {
+                    for (int week = 1; week <= 52; week++) {
+                        select = select + " sum(case when year(tender.date_start)=" + year + " and week(date_start) = " + week + " then tender."+ sum +" end) as 'Сумма в " + year + "W" + week + "',\n " +
+                                "count(case when year(tender.date_start)=" + year + " and week(date_start) = " + week + " then tender.id end) as 'Количество в " + year + "W" + week + "',\n ";
+                        column.add("Сумма в " + year + "W" + week);
+                        column.add("Количество в " + year + "W" + week);
+                    }
+                }
+                break;
+            case "Квартал":
+                for(int year = reportCriteria.getSearchParameters().getDateStart().getYear();year<=reportCriteria.getSearchParameters().getDateFinish().getYear();year++) {
+                    for (int quarter = 1; quarter <= 4; quarter++) {
+                        select = select + " sum(case when year(tender.date_start)=" + year + " and quarter(date_start) = " + quarter + " then tender."+ sum +" end) as 'Сумма в " + year + "Q" + quarter + "',\n " +
+                                "count(case when year(tender.date_start)=" + year + " and quarter(date_start) = " + quarter + " then tender.id end) as 'Количество в " + year + "Q" + quarter + "',\n ";
+                        column.add("Сумма в " + year + "Q" + quarter);
+                        column.add("Количество в " + year + "Q" + quarter);
+                    }
+                }
+                break;
+            case"Финансовый квартал":
+                for(int year = reportCriteria.getSearchParameters().getDateStart().getYear();year<=reportCriteria.getSearchParameters().getDateFinish().getYear();year++) {
+                    for (int quarter = 1; quarter <= 4; quarter++) {
+                        select = select + " sum(case when (year(date_start) + if(month(date_start)>10,1,0) )= " + year + " and IF(MONTH(date_start)>10, 1, CEIL((MONTH(date_start)+2)/3)) = " + quarter + " then tender."+ sum +" end) as 'Сумма в " + year + "FQ" + quarter + "',\n " +
+                                "count(case when (year(date_start) + if(month(date_start)>10,1,0) )= " + year + " and IF(MONTH(date_start)>10, 1, CEIL((MONTH(date_start)+2)/3)) = " + quarter + " then tender.id end) as 'Количество в " + year + "FQ" + quarter + "',\n ";
+                        column.add("Сумма в " + year + "FQ" + quarter);
+                        column.add("Количество в " + year + "FQ" + quarter);
+                    }
+                }
+                break;
+            case"Месяц":
+                for(int year = reportCriteria.getSearchParameters().getDateStart().getYear();year<=reportCriteria.getSearchParameters().getDateFinish().getYear();year++) {
+                    for (int month = 1; month <= 12; month++) {
+                        select = select + " sum(case when year(tender.date_start)=" + year + " and month(date_start) = " + month + " then tender."+ sum +" end) as 'Сумма в " + year + "M" + month + "',\n " +
+                                "count(case when year(tender.date_start)=" + year + " and month(date_start) = " + month + " then tender.id end) as 'Количество в " + year + "M" + month + "',\n ";
+                        column.add("Сумма в " + year + "M" + month);
+                        column.add("Количество в " + year + "M" + month);
+                    }
+                }
+
+                break;
+        }
+
+
+        return new Object[]{select.substring(0, select.lastIndexOf(',') )+
+                searchAtribut.findTenderForReport(reportCriteria.getSearchParameters(), fromWithJoin) +
+                " group by c.name", column};
     }
 }

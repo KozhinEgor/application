@@ -259,6 +259,152 @@ public class SearchAtribut {
         }
     }
 
+    public String findTenderForReport(SearchParameters json, String  fromWithJoin) {
+        boolean containsCustomer = fromWithJoin.contains("customer") ? true : false;
+        if(!containsCustomer){
+            fromWithJoin = fromWithJoin + " left join customer cus on tender.customer = cus.id \n";
+        }
+        String where = "";
+        if (json.getDateStart() != null) {
+            where = where + " date_start >= \"" + json.getDateStart().format(format_sql) + "\"\n";
+        }
+        if (json.getDateFinish() != null) {
+            ZonedDateTime finish = json.getDateFinish().plusHours(23L - json.getDateFinish().getHour());
+            where = where + (where.isBlank() ? " date_start <= \"" + finish.format(format_sql) + "\"\n" : " and date_start <= \"" + finish.format(format_sql) + "\"\n");
+        }
+        if (json.getType() != null && json.getType().size() != 0) {
+            String type = "(";
+            for (TypeTender t : json.getType()) {
+                type = type + t.getId() + ",";
+            }
+            type = type.substring(0, type.length() - 1) + ")\n";
+            if (json.isTypeExclude()) {
+                where = where + (where.isBlank() ? " typetender not in " + type : " and typetender not in " + type);
+            } else {
+                where = where + (where.isBlank()? " typetender in " + type : " and typetender in " + type);
+            }
+        }
+        if(json.getRegions() != null && json.getRegions().size() != 0){
+            String regions = "(";
+            for (Region c : json.getRegions()) {
+                regions = regions + " (" + (containsCustomer?"c":"cus") + ".inn like '" +c.getNumber()+ "%' and " + (containsCustomer?"c":"cus") + ".country = '2')\n or";
+            }
+            regions = regions.substring(0, regions.length() - 2) + ")\n";
+            where = where + (where.isBlank() ? regions : " and  " + regions);
+
+        }
+        if(json.getDistricts() != null && json.getDistricts().size() != 0){
+            String regions = "(";
+            for (District c : json.getDistricts()) {
+                for(String region : tableMapper.regionInDistrict(c.getId())){
+                    regions = regions + " (" + (containsCustomer?"c":"cus") + ".inn like '" +region+ "%' and " + (containsCustomer?"c":"cus") + ".country = '2')or";
+                }
+
+            }
+            regions = regions.substring(0, regions.length() - 2) + ")\n";
+            System.out.println(regions);
+            where = where + (where.isBlank() ? regions : " and  " + regions);
+        }
+        if (json.getCustom() != null && json.getCustom().size() != 0) {
+            String customer = "(";
+            for (Company c : json.getCustom()) {
+                customer = customer + c.getId() + ",";
+            }
+            customer = customer.substring(0, customer.length() - 1) + ")\n";
+            if (json.isCustomExclude()) {
+                where = where + (where.isBlank() ? " customer not in " + customer : " and customer not in " + customer);
+            } else {
+                where = where + (where.isBlank() ? " customer in " + customer : " and customer in " + customer);
+            }
+
+        }
+        if (json.getInnCustomer() != null && json.getInnCustomer().length != 0) {
+            where = where + (where.isBlank() ? "(":" and (");
+            for(String inn : json.getInnCustomer()){
+                if (json.isCustomExclude()) {
+                    where = where + " " + (containsCustomer?"c":"cus") + ".inn not like \"" + inn + "\" or";
+                } else {
+                    where = where +" " + (containsCustomer?"c":"cus") + ".inn like \"" + inn + "\" or";
+                }
+            }
+            where = where.substring(0,where.length()-2)+")\n";
+        }
+        if (json.getCountry() != null && json.getCountry() != null) {
+            if (json.isCustomExclude()) {
+                where = where + (where.isBlank() ? " " + (containsCustomer?"c":"cus") + ".country <> " + json.getCountry() : " and " + (containsCustomer?"c":"cus") + ".country <> " + json.getCountry());
+            } else {
+                where = where + (where.isBlank() ? " " + (containsCustomer?"c":"cus") + ".country = " + json.getCountry() : " and " + (containsCustomer?"c":"cus") + ".country = " + json.getCountry());
+            }
+        }
+        if (json.getWinner() != null && json.getWinner().size() != 0) {
+            String winner = "(";
+            for (Company w : json.getWinner()) {
+                winner = winner + w.getId() + ",";
+            }
+            winner = winner.substring(0, winner.length() - 1) + ")\n";
+            if (json.isWinnerExclude()) {
+                where = where + (where.isBlank() ? " winner not in " + winner : " and winner not in " + winner);
+            } else {
+                where = where + (where.isBlank() ? " winner in " + winner : " and winner in " + winner);
+            }
+
+        }
+        if (json.getMinSum() != null) {
+            where = where + (where.isBlank() ? " sum >= " + json.getMinSum() : " and sum >= " + json.getMinSum());
+        }
+        if (json.getMaxSum() != null) {
+            where = where + (where.isBlank() ? " sum <= " + json.getMaxSum() : " and sum <= " + json.getMaxSum());
+        }
+        if (!json.isDublicate()) {
+            where = where + (where.isBlank() ? " dublicate = false" : " and dublicate = false");
+        }
+        if (json.getIds() != null && json.getIds().length != 0) {
+            String id = "(";
+            for (Long i : json.getIds()) {
+                id = id + i.toString() + ",";
+            }
+            id = id.substring(0, id.length() - 1) + ")";
+            if (json.isNumberShow()) {
+                where = where + (where.isBlank() ? " tender.id not in " + id : " and tender.id not in " + id);
+            } else {
+                where = where + (where.isBlank() ? " tender.id in " + id : " and tender.id in " + id);
+            }
+        }
+        if (json.getBicotender() != null && json.getBicotender().length != 0) {
+            String number_tender = "(";
+            for (Long b : json.getBicotender()) {
+                number_tender = number_tender + b.toString() + ",";
+            }
+            number_tender = number_tender.substring(0, number_tender.length() - 1) + ")";
+            if (json.isNumberShow()) {
+                where = where + (where.isBlank() ? " number_tender not in " + number_tender : " and number_tender not in " + number_tender);
+            } else {
+                where = where + (where.isBlank()? " number_tender in " + number_tender : " and number_tender in " + number_tender);
+            }
+        }
+        if(json.isRealized() && json.isPlan_schedule()){
+            String idTender = "";
+            for(Long a : this.tableMapper.AllIdPlan()){
+                idTender = idTender + a.toString() + ',';
+            }
+            if(!idTender.equals("")) {
+                where = where + (where.isBlank() ? " tender.id not in(" + idTender.substring(0, idTender.length() - 1) +")": " and  tender.id not in(" + idTender.substring(0, idTender.length() - 1)+")");
+            }
+        }
+        if (json.getProduct() != null && json.getProduct().size() != 0) {
+
+            String idString = this.searchTenderByProduct(json.getProduct());
+
+            if (idString.length() != 0) {
+                where = where + (where.isBlank() ? " "+this.searchTenderByProduct(json.getProduct()) : " and ("+this.searchTenderByProduct(json.getProduct())+")");
+            } else {
+                where = where + " tender.id = 0";
+            }
+            // where = where +  (where.equals("where")?" tender.id in (" + id.toString().substring(1,id.toString().length()-1)+")":" and tender.id in (" + id.toString().substring(1,id.toString().length()-1)+")");
+        }
+        return fromWithJoin + " where " + where;
+    }
+
     public String orderTender(Long page, String sortName, String sortDirection, Long pageSize){
         switch (sortName){
             case "id":
@@ -560,7 +706,7 @@ public class SearchAtribut {
         return "";
     }
 
-    public String UpdateProductTender(Long idTender) {
+    public void UpdateProductTender(Long idTender) {
         List<Orders> orders = tableMapper.findAllOrdersbyTender(idTender);
         StringBuilder product = new StringBuilder();
         Orders anotherProduct = tableMapper.findAnotherProductbyTender(idTender);
@@ -569,36 +715,38 @@ public class SearchAtribut {
             orders.add(anotherProduct);
         }
         if (orders != null) {
-
-            for(Orders o : orders){
-                String comment = "";
-
-              if (o.getProduct().equals("Без артикула")){
-                   comment = ((o.getOptions() != null && !o.getOptions().equals("")?o.getOptions() + " ":"")
-                            + (o.getPortable() !=null && o.getPortable() ? "портативный " : "")
-                            + (o.getUsb() !=null && o.getUsb()? "USB " : "")
-                            + (o.getVxi() !=null && o.getVxi()? "VXI " : "")
-                            + (o.getFrequency() != null && o.getFrequency() != 0 ?  o.getFrequency() +  "ГГц " : "")
-                            + (o.getChannel()!=null && o.getChannel()!= 0? o.getChannel()+  "кан. " : "")
-                            + (o.getPort()!=null && o.getPort() != 0? o.getPort()+  "порта " : "")
-                            + (o.getForm_factor() != null  && !o.getForm_factor().equals("") ? o.getForm_factor()+" ":"")
-                            + (o.getPurpose() != null && !o.getPurpose().equals("") ? o.getPurpose() + " ":"")
-                            + (o.getVoltage() != null && o.getVoltage() != 0? o.getVoltage()+"В ":"")
-                            + (o.getCurrent() != null && o.getCurrent() != 0? o.getCurrent()+"А ":"")
-                            + o.getComment_DB());
-               }
-              else{
-                    comment = ((o.getOptions() != null && !o.getOptions().equals("")?o.getOptions() + " ":"")
-                            + o.getComment_DB());
-                }
-              o.setComment(comment);
-              product.append(o.ToDB()).append("; ");
-            }
-            tableMapper.UpdateProductTender(product.toString(), idTender);
-
+            tableMapper.UpdateProductTender(this.generateProductString(orders), idTender);
         }
         else {
-            tableMapper.UpdateProductTender(product.toString(), idTender);
+            tableMapper.UpdateProductTender("", idTender);
+        }
+    }
+
+    public String generateProductString(List<Orders> orders){
+        StringBuilder product = new StringBuilder();
+        for(Orders o : orders){
+            String comment = "";
+
+            if (o.getProduct().equals("Без артикула")){
+                comment = ((o.getOptions() != null && !o.getOptions().equals("")?o.getOptions() + " ":"")
+                        + (o.getPortable() !=null && o.getPortable() ? "портативный " : "")
+                        + (o.getUsb() !=null && o.getUsb()? "USB " : "")
+                        + (o.getVxi() !=null && o.getVxi()? "VXI " : "")
+                        + (o.getFrequency() != null && o.getFrequency() != 0 ?  o.getFrequency() +  "ГГц " : "")
+                        + (o.getChannel()!=null && o.getChannel()!= 0? o.getChannel()+  "кан. " : "")
+                        + (o.getPort()!=null && o.getPort() != 0? o.getPort()+  "порта " : "")
+                        + (o.getForm_factor() != null  && !o.getForm_factor().equals("") ? o.getForm_factor()+" ":"")
+                        + (o.getPurpose() != null && !o.getPurpose().equals("") ? o.getPurpose() + " ":"")
+                        + (o.getVoltage() != null && o.getVoltage() != 0? o.getVoltage()+"В ":"")
+                        + (o.getCurrent() != null && o.getCurrent() != 0? o.getCurrent()+"А ":"")
+                        + o.getComment_DB());
+            }
+            else{
+                comment = ((o.getOptions() != null && !o.getOptions().equals("")?o.getOptions() + " ":"")
+                        + o.getComment_DB());
+            }
+            o.setComment(comment);
+            product.append(o.ToDB()).append("; ");
         }
         return product.toString();
     }
