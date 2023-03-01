@@ -60,6 +60,9 @@ public class SearchAtribut {
         return idType;
     }
 
+    public String searchTenderIdByProduct(List<ProductReceived> products){
+        return  "Select tender from orders o left join product pr on pr.id = o.product where " + searchTenderByProduct(products);
+    }
     public String searchTenderByProduct(List<ProductReceived> products) {
 
         String where = "";
@@ -393,10 +396,11 @@ public class SearchAtribut {
         }
         if (json.getProduct() != null && json.getProduct().size() != 0) {
 
-            String idString = this.searchTenderByProduct(json.getProduct());
+
+            String idString = this.searchTenderIdByProduct(json.getProduct());
 
             if (idString.length() != 0) {
-                where = where + (where.isBlank() ? " "+this.searchTenderByProduct(json.getProduct()) : " and ("+this.searchTenderByProduct(json.getProduct())+")");
+                where = where + (where.isBlank() ? " tender.id in ("+idString + ") " : " and tender.id in ("+idString+")");
             } else {
                 where = where + " tender.id = 0";
             }
