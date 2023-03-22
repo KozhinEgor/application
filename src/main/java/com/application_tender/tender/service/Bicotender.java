@@ -13,7 +13,7 @@ import java.nio.charset.StandardCharsets;
 @Controller
 public class Bicotender {
     private final String url ="https://www.bicotender.ru/api3/tenders/";
-    private final String account = "/?login=client4002241&password=d857ff489099c57ebf960b2a0dbf9270";
+    private final String account = "/?login=client4412324&password=9429466337efb778f2a9ad013a3329a0";
     public  JSONObject loadTender(Long number){
         JSONObject ob = new JSONObject();
         String in = null;
