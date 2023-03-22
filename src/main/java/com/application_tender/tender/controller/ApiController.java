@@ -26,6 +26,7 @@ import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -548,6 +549,7 @@ public class ApiController {
     @ApiOperation(value = "Разделение тендера", notes = "Разделение тендера на под тендеры")
     @PostMapping("/divdeTender")
     @ResponseBody
+    @Transactional
     ResponseEntity divdeTender(@RequestBody List<DivedeTenderDTO> divdeTender) {
         tableMapper.changeDublicate(divdeTender.get(0).getTender().getId());
         for(DivedeTenderDTO divedeTenderDTO : divdeTender){
@@ -1640,11 +1642,15 @@ public class ApiController {
         if(reportCriteria.getSearchParameters().getDateFinish() == null){
             reportCriteria.getSearchParameters().setDateFinish(ZonedDateTime.now());
         }
+        //FIXME
         Map<String,Double> kurs = new HashMap<>();
         kurs.put("2018",62.6906);
         kurs.put("2019",64.6625);
         kurs.put("2020",72.1260);
         kurs.put("2021",73.7123);
+        kurs.put("2022",67.46);
+        kurs.put("2023",1.0);
+        kurs.put("2024",1.0);
         String nameYear = "Год";
         String tender = searchAtribut.WhereWithoutProduct(reportCriteria.getSearchParameters()).substring(5);
         String tenderPeriod = searchAtribut.ParametrsWithoutProductAndDate(reportCriteria.getSearchParameters()).substring(5);

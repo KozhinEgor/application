@@ -61,7 +61,7 @@ public class SearchAtribut {
     }
 
     public String searchTenderIdByProduct(List<ProductReceived> products){
-        return  "Select tender from orders o left join product pr on pr.id = o.product where " + searchTenderByProduct(products);
+        return  "Select tender from orders o left join product as pr on pr.id = o.product left join product_category on pr.product_category = product_category.id left join subcategory on pr.subcategory = subcategory.id where " + searchTenderByProduct(products);
     }
     public String searchTenderByProduct(List<ProductReceived> products) {
 
@@ -73,7 +73,7 @@ public class SearchAtribut {
             if(product.getVendor_code() != null && product.getVendor_code().length != 0){
                 for(Product product1 : product.getVendor_code()){
                     whereProduct = whereProduct + (whereProduct.equals("(") ? " pr.id ="  + product1.getId() :
-                            " or pr.pid =" + product1.getId());
+                            " or pr.id =" + product1.getId());
                 }
                 where =where + whereProduct + ") or";
                 continue;
