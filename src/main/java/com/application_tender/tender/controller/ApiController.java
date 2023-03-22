@@ -520,7 +520,7 @@ public class ApiController {
         if (category == 0L) {
             return tableMapper.findAllVendor();
         } else {
-            return tableMapper.findAllVendorByCategory(tableMapper.findNameCategoryById(category));
+            return tableMapper.findAllVendorByCategory(category);
         }
     }
 

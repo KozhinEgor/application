@@ -417,8 +417,8 @@ public interface TableMapper {
     @Select("Select id from vendor where name = #{name}")
     Long findOneVendorByName(String name);
 
-    @Select("Select * from vendor where id in(Select DISTINCT vendor from ${category})")
-    List<Vendor> findAllVendorByCategory(String category);
+    @Select("Select * from vendor where id in(Select DISTINCT vendor from product where product_category =  ${category})")
+    List<Vendor> findAllVendorByCategory(Long category);
 
     ///////////////////////////////////////////////////////////
 //              Order SQL
